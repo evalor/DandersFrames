@@ -145,6 +145,22 @@ function DF:ApplyAuraLayout(frame)
                                     return
                                 end
 
+                                local function safeNumber(value)
+                                    if type(value) ~= "number" then
+                                        return nil
+                                    end
+
+                                    local ok, coerced = pcall(function()
+                                        return value + 0
+                                    end)
+
+                                    if ok then
+                                        return coerced
+                                    end
+
+                                    return nil
+                                end
+
                                 -- Capture any cooldown values we might have missed before the SetCooldown hook ran
                                 if (not cd.dfStart or not cd.dfDuration) and cd.GetCooldownTimes then
                                     local start, duration = cd:GetCooldownTimes()
@@ -160,17 +176,19 @@ function DF:ApplyAuraLayout(frame)
                                     end
                                 end
 
-                                local hasStart = type(cd.dfStart) == "number"
-                                local hasDuration = type(cd.dfDuration) == "number"
+                                local start = safeNumber(cd.dfStart)
+                                local duration = safeNumber(cd.dfDuration)
 
-                                if not (hasStart and hasDuration and cd.dfDuration > 0) then
+                                if not (start and duration and duration > 0) then
                                     text:Hide()
                                     return
                                 end
 
-                                local remaining = (cd.dfStart + cd.dfDuration) - GetTime()
+                                local ok, remaining = pcall(function()
+                                    return (start + duration) - GetTime()
+                                end)
 
-                                if remaining <= 0.5 then
+                                if not ok or remaining <= 0.5 then
                                     text:Hide()
                                     return
                                 end
