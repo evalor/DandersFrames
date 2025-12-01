@@ -1,0 +1,47 @@
+## Interface: 120000
+## Title: DandersFrames
+## Notes: Midnight Party/Raid frames.
+## Author: Danders
+## Version: 2.3.2
+## SavedVariables: DandersFramesDB
+## AllowAddOnTableAccess: 1
+
+# -- Addon Compartment & Icon Settings --
+## IconTexture: Interface\AddOns\DandersFrames\DF_Icon
+## AddonCompartmentFunc: DandersFrames_OnAddonCompartmentClick
+
+# Load Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+Libs\AceConfig-3.0\AceConfig-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+
+# Minimap Libraries
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+# Core Configuration & Utilities (Load First)
+DandersFrames_Config.lua
+DandersFrames_Profile.lua
+DandersFrames_Layout.lua
+
+# Features
+DandersFrames_Hooks.lua
+DandersFrames_Health.lua
+DandersFrames_Text.lua
+DandersFrames_Auras.lua
+DandersFrames_Bars.lua
+DandersFrames_Minimap.lua
+DandersFrames_EditMode.lua
+
+# Options File
+DandersFrames_Options.lua
+DandersFrames_GUI.lua
+
+# Main Core Logic (Load Last)
+DandersFrames.lua
