@@ -140,53 +140,56 @@ function DF:ApplyAuraLayout(frame)
                                 local cd = self.cooldown
                                 local text = self:GetParent().dfCountdownText
 
-                                -- Use our stored values instead of API calls
-                                if cd and cd:IsShown() then
-                                    -- Capture any cooldown values we might have missed before the SetCooldown hook ran
-                                    if (not cd.dfStart or not cd.dfDuration) and cd.GetCooldownTimes then
-                                        local start, duration = cd:GetCooldownTimes()
-                                        if start and duration then
-                                            -- GetCooldownTimes returns milliseconds
-                                            start = start / 1000
-                                            duration = duration / 1000
-
-                                            if duration > 0 then
-                                                cd.dfStart = start
-                                                cd.dfDuration = duration
-                                            end
-                                        end
-                                    end
-
-                                    if cd.dfStart and cd.dfDuration and cd.dfDuration > 0 then
-                                        local remaining = (cd.dfStart + cd.dfDuration) - GetTime()
-
-                                        if remaining > 0.5 then
-                                            if remaining >= 3600 then
-                                                text:SetText(math.floor(remaining / 3600) .. "h")
-                                            elseif remaining >= 60 then
-                                                text:SetText(math.floor(remaining / 60) .. "m")
-                                            elseif remaining >= 10 then
-                                                text:SetText(math.floor(remaining))
-                                            elseif remaining >= 3 then
-                                                text:SetFormattedText("%.0f", remaining)
-                                            else
-                                                if countdownDecimalMode == "WHOLE" then
-                                                    text:SetFormattedText("%.0f", remaining)
-                                                else
-                                                    text:SetFormattedText("%.1f", remaining)
-                                                end
-                                            end
-
-                                            text:Show()
-                                        else
-                                            text:Hide()
-                                        end
-                                    else
-                                        text:Hide()
-                                    end
-                                else
-                                    text:Hide()
+                                if not (cd and cd:IsShown() and text) then
+                                    if text then text:Hide() end
+                                    return
                                 end
+
+                                -- Capture any cooldown values we might have missed before the SetCooldown hook ran
+                                if (not cd.dfStart or not cd.dfDuration) and cd.GetCooldownTimes then
+                                    local start, duration = cd:GetCooldownTimes()
+                                    if start and duration then
+                                        -- GetCooldownTimes returns milliseconds
+                                        start = start / 1000
+                                        duration = duration / 1000
+
+                                        if duration > 0 then
+                                            cd.dfStart = start
+                                            cd.dfDuration = duration
+                                        end
+                                    end
+                                end
+
+                                local hasStart = type(cd.dfStart) == "number"
+                                local hasDuration = type(cd.dfDuration) == "number"
+
+                                if not (hasStart and hasDuration and cd.dfDuration > 0) then
+                                    text:Hide()
+                                    return
+                                end
+
+                                local remaining = (cd.dfStart + cd.dfDuration) - GetTime()
+
+                                if remaining <= 0.5 then
+                                    text:Hide()
+                                    return
+                                end
+
+                                if remaining >= 3600 then
+                                    text:SetText(math.floor(remaining / 3600) .. "h")
+                                elseif remaining >= 60 then
+                                    text:SetText(math.floor(remaining / 60) .. "m")
+                                elseif remaining >= 10 then
+                                    text:SetText(math.floor(remaining))
+                                elseif countdownDecimalMode == "WHOLE" then
+                                    text:SetText(math.ceil(remaining))
+                                elseif remaining >= 3 then
+                                    text:SetFormattedText("%.0f", remaining)
+                                else
+                                    text:SetFormattedText("%.1f", remaining)
+                                end
+
+                                text:Show()
                             end)
                             aura.dfCountdownOverlay.hasOnUpdate = true
                         end
