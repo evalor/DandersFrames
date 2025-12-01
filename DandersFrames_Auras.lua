@@ -163,20 +163,24 @@ function DF:ApplyAuraLayout(frame)
                                         if remaining > 0.5 then
                                             if remaining >= 3600 then
                                                 text:SetText(math.floor(remaining / 3600) .. "h")
-                                        elseif remaining >= 60 then
-                                            text:SetText(math.floor(remaining / 60) .. "m")
-                                        elseif remaining >= 10 then
-                                            text:SetText(math.floor(remaining))
-                                        elseif remaining >= 3 then
-                                            text:SetFormattedText("%.0f", remaining)
-                                        else
-                                            if countdownDecimalMode == "WHOLE" then
+                                            elseif remaining >= 60 then
+                                                text:SetText(math.floor(remaining / 60) .. "m")
+                                            elseif remaining >= 10 then
+                                                text:SetText(math.floor(remaining))
+                                            elseif remaining >= 3 then
                                                 text:SetFormattedText("%.0f", remaining)
                                             else
-                                                text:SetFormattedText("%.1f", remaining)
+                                                if countdownDecimalMode == "WHOLE" then
+                                                    text:SetFormattedText("%.0f", remaining)
+                                                else
+                                                    text:SetFormattedText("%.1f", remaining)
+                                                end
                                             end
+
+                                            text:Show()
+                                        else
+                                            text:Hide()
                                         end
-                                        text:Show()
                                     else
                                         text:Hide()
                                     end
