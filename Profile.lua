@@ -191,7 +191,9 @@ function DF:DuplicateProfile(newName)
         print("|cffff6666DandersFrames:|r Please enter a profile name.")
         return false
     end
-    
+
+    local currentName = DandersFramesDB_v2 and DandersFramesDB_v2.currentProfile or "Default"
+
     -- Initialize profiles table if needed
     if not DandersFramesDB_v2 then DandersFramesDB_v2 = {} end
     if not DandersFramesDB_v2.profiles then DandersFramesDB_v2.profiles = {} end
