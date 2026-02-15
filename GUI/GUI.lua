@@ -676,7 +676,7 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
             return
         end
         
-        -- Only show when in raid mode and editing
+        -- Only show when in raid mode
         local GUI = DF.GUI
         if not GUI or GUI.SelectedMode ~= "raid" then
             self.overrideStar:Hide()
@@ -685,20 +685,61 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
             self.overrideCheckIcon:Hide()
             return
         end
-        
+
         local AutoProfilesUI = DF.AutoProfilesUI
-        if not AutoProfilesUI or not AutoProfilesUI:IsEditing() then
+        local isEditing = AutoProfilesUI and AutoProfilesUI:IsEditing()
+        local isRuntimeOverridden = AutoProfilesUI and AutoProfilesUI:IsOverriddenByRuntime(dbKey)
+
+        -- Hide everything if not editing AND not runtime-overridden
+        if not isEditing and not isRuntimeOverridden then
             self.overrideStar:Hide()
             self.overrideResetBtn:Hide()
             self.overrideGlobalText:Hide()
             self.overrideCheckIcon:Hide()
             return
         end
-        
+
+        -- Runtime override mode: show star + global value, but no reset button
+        if isRuntimeOverridden and not isEditing then
+            self.overrideStar:Show()
+            self.overrideResetBtn:Hide()  -- Can't reset runtime overrides from controls
+            self.overrideCheckIcon:Hide()
+
+            local globalValue = AutoProfilesUI:GetRuntimeGlobalValue(dbKey)
+
+            -- Format global value for display
+            local globalDisplay
+            if type(globalValue) == "boolean" then
+                globalDisplay = globalValue and "Yes" or "No"
+            elseif type(globalValue) == "number" then
+                if globalValue == math.floor(globalValue) then
+                    globalDisplay = tostring(globalValue)
+                else
+                    globalDisplay = string.format("%.2f", globalValue)
+                end
+            elseif type(globalValue) == "table" then
+                if globalValue.r then
+                    globalDisplay = "Color"
+                else
+                    globalDisplay = "..."
+                end
+            else
+                globalDisplay = tostring(globalValue or "None")
+            end
+
+            self.overrideGlobalText:SetText("(Global: " .. globalDisplay .. ")")
+            self.overrideGlobalText:ClearAllPoints()
+            self.overrideGlobalText:SetPoint("LEFT", lbl, "RIGHT", 4, 0)
+            self.overrideGlobalText:SetTextColor(0.5, 0.5, 0.5)
+            self.overrideGlobalText:Show()
+            return
+        end
+
+        -- Editing mode: existing behavior
         -- Check if setting is overridden
         local isOverridden = AutoProfilesUI:IsSettingOverridden(dbKey)
         local globalValue = AutoProfilesUI:GetGlobalValue(dbKey)
-        
+
         -- Show/hide star and reset button
         if isOverridden then
             self.overrideStar:Show()
@@ -707,7 +748,7 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
             self.overrideStar:Hide()
             self.overrideResetBtn:Hide()
         end
-        
+
         -- Format global value for display
         local globalDisplay
         if type(globalValue) == "boolean" then
@@ -728,12 +769,12 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
         else
             globalDisplay = tostring(globalValue or "None")
         end
-        
+
         -- Show global value inline with label
         self.overrideGlobalText:SetText("(Global: " .. globalDisplay .. ")")
         self.overrideGlobalText:ClearAllPoints()
         self.overrideGlobalText:SetPoint("LEFT", lbl, "RIGHT", 4, 0)
-        
+
         if isOverridden then
             self.overrideGlobalText:SetTextColor(0.5, 0.5, 0.5)
             self.overrideCheckIcon:Hide()
@@ -933,8 +974,16 @@ function GUI:CreateCheckbox(parent, label, dbTable, dbKey, callback, customGet, 
             print("  overrideKey:", overrideKey)
             print("  new value:", val)
         end
+
+        -- Runtime override protection: redirect to baseline, skip refresh
+        if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+           and DF.AutoProfilesUI:HandleRuntimeWrite(effectiveOverrideKey, val) then
+            if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(val) end
+            return
+        end
+
         if customSet then customSet(val) elseif dbTable and dbKey then dbTable[dbKey] = val end
-        
+
         -- If editing a profile, also set the override (use effectiveOverrideKey)
         if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() and effectiveOverrideKey then
             DF.AutoProfilesUI:SetProfileSetting(effectiveOverrideKey, val)
@@ -1069,6 +1118,12 @@ function GUI:CreateEditBox(parent, label, dbTable, dbKey, callback, width)
     local function SaveValue()
         if dbTable and dbKey then
             local val = editbox:GetText()
+            -- Runtime override protection
+            if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+               and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, val) then
+                if frame.UpdateOverrideIndicators then frame:UpdateOverrideIndicators(val) end
+                return
+            end
             dbTable[dbKey] = val
             -- Track override when editing a profile
             if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() then
@@ -1270,8 +1325,18 @@ function GUI:CreateSlider(parent, label, minVal, maxVal, step, dbTable, dbKey, c
         else
             value = math.floor(value / step + 0.5) * step
         end
+
+        -- Runtime override protection: redirect to baseline, skip refresh
+        if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+           and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, value) then
+            if not input:HasFocus() then input:SetText(FormatValue(value)) end
+            UpdateFill()
+            if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(value) end
+            return
+        end
+
         dbTable[dbKey] = value
-        
+
         -- If editing a profile, also set the override
         if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() and dbKey then
             DF.AutoProfilesUI:SetProfileSetting(dbKey, value)
@@ -1293,32 +1358,46 @@ function GUI:CreateSlider(parent, label, minVal, maxVal, step, dbTable, dbKey, c
         local val = tonumber(self:GetText())
         if val then
             val = math.max(minVal, math.min(maxVal, val))
+
+            -- Runtime override protection: redirect to baseline, skip refresh
+            if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+               and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, val) then
+                self:SetText(FormatValue(val))
+                suppressCallback = true
+                slider:SetValue(val)
+                suppressCallback = false
+                UpdateFill()
+                if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(val) end
+                self:ClearFocus()
+                return
+            end
+
             dbTable[dbKey] = val
             suppressCallback = true
             slider:SetValue(val)
             suppressCallback = false
-            
+
             -- Update input text to show actual value entered
             self:SetText(FormatValue(val))
             UpdateFill()
-            
+
             -- If editing a profile, also set the override
             if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() and dbKey then
                 DF.AutoProfilesUI:SetProfileSetting(dbKey, val)
             end
-            
+
             -- Update override indicators
             if container.UpdateOverrideIndicators then
                 container:UpdateOverrideIndicators(val)
             end
-            
+
             -- FIX 2025-01-20: Call callback OR lightweightUpdate (some sliders have nil callback)
             if callback then
                 callback()
             elseif lightweightUpdate then
                 lightweightUpdate()
             end
-            
+
             -- Guaranteed full update (SetValue may not fire OnValueChanged if value didn't change)
             DF:UpdateAll()
         else
@@ -1660,13 +1739,22 @@ function GUI:CreateDropdown(parent, label, options, dbTable, dbKey, callback)
         menuBtn.Highlight:SetColorTexture(c.r, c.g, c.b, 0.3)
         
         menuBtn:SetScript("OnClick", function()
+            -- Runtime override protection: redirect to baseline, skip refresh
+            if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+               and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, opt.key) then
+                UpdateText()
+                menuFrame:Hide()
+                if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(opt.key) end
+                return
+            end
+
             dbTable[dbKey] = opt.key
-            
+
             -- If editing a profile, also set the override
             if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() and dbKey then
                 DF.AutoProfilesUI:SetProfileSetting(dbKey, opt.key)
             end
-            
+
             UpdateText()
             menuFrame:Hide()
             DF:UpdateAll()
@@ -1952,6 +2040,14 @@ function GUI:CreateTextureDropdown(parent, label, dbTable, dbKey, callback, cust
             menuBtn.Highlight:SetColorTexture(c.r, c.g, c.b, 0.3)
             
             menuBtn:SetScript("OnClick", function()
+                -- Runtime override protection
+                if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                   and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, opt.key) then
+                    UpdateText()
+                    menuFrame:Hide()
+                    if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(opt.key) end
+                    return
+                end
                 dbTable[dbKey] = opt.key
                 -- Track override when editing a profile
                 if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() and dbKey then
@@ -1965,7 +2061,7 @@ function GUI:CreateTextureDropdown(parent, label, dbTable, dbKey, callback, cust
                 DF:UpdateAll()
                 if callback then callback() end
             end)
-            
+
             table.insert(menuButtons, menuBtn)
         end
     end
@@ -2255,6 +2351,14 @@ function GUI:CreateFontDropdown(parent, label, dbTable, dbKey, callback)
             menuBtn.Highlight:SetColorTexture(c.r, c.g, c.b, 0.3)
             
             menuBtn:SetScript("OnClick", function()
+                -- Runtime override protection
+                if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                   and DF.AutoProfilesUI:HandleRuntimeWrite(dbKey, opt.key) then
+                    UpdateText()
+                    menuFrame:Hide()
+                    if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators(opt.key) end
+                    return
+                end
                 -- Store font NAME in database (not path)
                 dbTable[dbKey] = opt.key
                 -- Track override when editing a profile

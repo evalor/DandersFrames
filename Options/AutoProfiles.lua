@@ -2691,6 +2691,46 @@ function AutoProfilesUI:ReapplyRuntimeOverrides()
     end
 end
 
+-- ============================================================
+-- RUNTIME WRITE INTERCEPTION
+-- Prevents GUI controls from stomping override values in DF.db.raid
+-- when a runtime auto-profile is active.
+-- ============================================================
+
+-- Intercept a GUI control write for an overridden key.
+-- Stores the user's new global value in runtimeBaseline (takes effect when profile deactivates).
+-- Returns true if the write was intercepted (caller should skip db write + frame refresh).
+function AutoProfilesUI:HandleRuntimeWrite(key, value)
+    if not self.activeRuntimeProfile or not self.runtimeBaseline then return false end
+    if self.runtimeBaseline[key] == nil then return false end  -- key not overridden
+
+    -- Store the user's new global in the baseline (takes effect when profile deactivates)
+    if type(value) == "table" then
+        local copy = {}
+        for k, v in pairs(value) do copy[k] = v end
+        self.runtimeBaseline[key] = copy
+    else
+        self.runtimeBaseline[key] = value
+    end
+    return true  -- intercepted
+end
+
+-- Check if a setting key is currently overridden by an active runtime profile.
+-- Used by the GUI to show visual indicators on overridden controls.
+function AutoProfilesUI:IsOverriddenByRuntime(key)
+    if not self.activeRuntimeProfile or not self.runtimeBaseline then return false end
+    return self.runtimeBaseline[key] ~= nil
+end
+
+-- Get the global (baseline) value of an overridden key for display in indicators.
+-- Returns the baseline value if overridden, otherwise falls back to the current raid value.
+function AutoProfilesUI:GetRuntimeGlobalValue(key)
+    if self.runtimeBaseline and self.runtimeBaseline[key] ~= nil then
+        return self.runtimeBaseline[key]
+    end
+    return GetRaidValue(key)
+end
+
 -- Evaluate current content/raid state and apply/remove profiles as needed
 function AutoProfilesUI:EvaluateAndApply()
     if not DF.initialized then return end

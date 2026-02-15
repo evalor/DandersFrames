@@ -1524,17 +1524,49 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                     return
                 end
                 
-                if not AutoProfilesUI or not AutoProfilesUI:IsEditing() then
+                local isEditing = AutoProfilesUI and AutoProfilesUI:IsEditing()
+                local pinnedKey = GetPinnedKey(dbKey)
+                local isRuntimeOverridden = AutoProfilesUI and AutoProfilesUI:IsOverriddenByRuntime(pinnedKey)
+
+                -- Hide everything if not editing AND not runtime-overridden
+                if not isEditing and not isRuntimeOverridden then
                     self.overrideStar:Hide(); self.overrideResetBtn:Hide()
                     self.overrideGlobalText:Hide(); self.overrideCheckIcon:Hide()
                     return
                 end
-                
-                -- Build key dynamically (tab may have changed)
-                local pinnedKey = GetPinnedKey(dbKey)
+
+                -- Runtime override mode: show star + global value, no reset button
+                if isRuntimeOverridden and not isEditing then
+                    self.overrideStar:Show()
+                    self.overrideResetBtn:Hide()
+                    self.overrideCheckIcon:Hide()
+
+                    local globalValue = AutoProfilesUI:GetRuntimeGlobalValue(pinnedKey)
+                    local globalDisplay
+                    if type(globalValue) == "boolean" then
+                        globalDisplay = globalValue and "Yes" or "No"
+                    elseif type(globalValue) == "number" then
+                        if globalValue == math.floor(globalValue) then
+                            globalDisplay = tostring(globalValue)
+                        else
+                            globalDisplay = string.format("%.2f", globalValue)
+                        end
+                    elseif type(globalValue) == "table" then
+                        globalDisplay = "..."
+                    else
+                        globalDisplay = tostring(globalValue or "None")
+                    end
+
+                    self.overrideGlobalText:SetText("Global: " .. globalDisplay)
+                    self.overrideGlobalText:SetTextColor(0.5, 0.5, 0.5)
+                    self.overrideGlobalText:Show()
+                    return
+                end
+
+                -- Editing mode: existing behavior
                 local isOverridden = AutoProfilesUI:IsSettingOverridden(pinnedKey)
                 local globalValue = AutoProfilesUI:GetGlobalValue(pinnedKey)
-                
+
                 if isOverridden then
                     self.overrideStar:Show()
                     self.overrideResetBtn:Show()
@@ -1542,7 +1574,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                     self.overrideStar:Hide()
                     self.overrideResetBtn:Hide()
                 end
-                
+
                 -- Format global value for display
                 local globalDisplay
                 if type(globalValue) == "boolean" then
@@ -1558,7 +1590,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 else
                     globalDisplay = tostring(globalValue or "None")
                 end
-                
+
                 -- Show global text with check/star positioning
                 if isOverridden then
                     self.overrideGlobalText:SetText("Global: " .. globalDisplay)
@@ -1602,9 +1634,16 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             txt:SetText(label)
             txt:SetTextColor(0.8, 0.8, 0.8)
             cb:SetScript("OnClick", function(s)
-                GetCurrentSet()[dbKey] = s:GetChecked()
+                local val = s:GetChecked()
+                -- Runtime override protection
+                if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                   and DF.AutoProfilesUI:HandleRuntimeWrite(GetPinnedKey(dbKey), val) then
+                    if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators() end
+                    return
+                end
+                GetCurrentSet()[dbKey] = val
                 if DF.AutoProfilesUI and DF.AutoProfilesUI:IsEditing() then
-                    DF.AutoProfilesUI:SetProfileSetting(GetPinnedKey(dbKey), s:GetChecked())
+                    DF.AutoProfilesUI:SetProfileSetting(GetPinnedKey(dbKey), val)
                 end
                 if callback then callback(GetCurrentSet()) end
                 DF:UpdateAll()
@@ -1676,6 +1715,14 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             local function UpdateFill() local pct = (slider:GetValue() - minVal) / (maxVal - minVal); fill:SetWidth(math.max(1, pct * 168)) end
             local function UpdateValue(val) slider:SetValue(val); input:SetText(step < 1 and string.format("%.1f", val) or string.format("%d", val)); UpdateFill() end
             slider:SetScript("OnValueChanged", function(_, value)
+                -- Runtime override protection
+                if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                   and DF.AutoProfilesUI:HandleRuntimeWrite(GetPinnedKey(dbKey), value) then
+                    input:SetText(step < 1 and string.format("%.1f", value) or string.format("%d", value))
+                    UpdateFill()
+                    if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators() end
+                    return
+                end
                 GetCurrentSet()[dbKey] = value
                 input:SetText(step < 1 and string.format("%.1f", value) or string.format("%d", value))
                 UpdateFill()
@@ -1689,6 +1736,16 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 local val = tonumber(s:GetText())
                 if val then
                     val = math.max(minVal, math.min(maxVal, val))
+                    -- Runtime override protection
+                    if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                       and DF.AutoProfilesUI:HandleRuntimeWrite(GetPinnedKey(dbKey), val) then
+                        s:SetText(step < 1 and string.format("%.1f", val) or string.format("%d", val))
+                        slider:SetValue(val)
+                        UpdateFill()
+                        if container.UpdateOverrideIndicators then container:UpdateOverrideIndicators() end
+                        s:ClearFocus()
+                        return
+                    end
                     GetCurrentSet()[dbKey] = val
                     slider:SetValue(val)
                     s:SetText(step < 1 and string.format("%.1f", val) or string.format("%d", val))
@@ -1776,6 +1833,14 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 local tc = GUI.GetThemeColor()
                 menuBtn.Highlight:SetColorTexture(tc.r, tc.g, tc.b, 0.3)
                 menuBtn:SetScript("OnClick", function()
+                    -- Runtime override protection
+                    if GUI.SelectedMode == "raid" and DF.AutoProfilesUI
+                       and DF.AutoProfilesUI:HandleRuntimeWrite(GetPinnedKey(dbKey), opt.key) then
+                        UpdateText()
+                        menuFrame:Hide()
+                        if wrapper.UpdateOverrideIndicators then wrapper:UpdateOverrideIndicators() end
+                        return
+                    end
                     GetCurrentSet()[dbKey] = opt.key
                     UpdateText()
                     menuFrame:Hide()
