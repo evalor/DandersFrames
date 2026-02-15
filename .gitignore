@@ -15,3 +15,6 @@ Desktop.ini
 
 # Zip builds
 *.zip
+
+# Reference material (not for repo)
+_Reference/
