@@ -3,11 +3,6 @@
 ## [4.0.7] - 2026-02-16
 
 ### Bug Fixes
-* `/df resetgui` command now works — was referencing wrong frame variable, also shows the GUI after resetting
-* Settings UI can now be dragged from the bottom banner in addition to the title bar
-* Fix party frame mover (blue rectangle) showing wrong size after switching between profiles with different orientations or frame dimensions
-* Fix Wago UI pack imports overwriting previous profiles — importing multiple profiles sequentially no longer corrupts the first imported profile
-* Fix error when duplicating a profile
 * Fix pet frames vanishing after reload — pet frame updates were skipped in header mode, so they were never shown after login or `/rl`
 * Fix pet frame font crash on non-English clients
 * Reduce redundant pet frame updates during startup (throttled from 6 calls to 1-2)
@@ -21,6 +16,15 @@
 
 ### New Features
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
+
+## [4.0.6] - 2026-02-15
+
+### Bug Fixes
+* `/df resetgui` command now works — was referencing wrong frame variable, also shows the GUI after resetting
+* Settings UI can now be dragged from the bottom banner in addition to the title bar
+* Fix party frame mover (blue rectangle) showing wrong size after switching between profiles with different orientations or frame dimensions
+* Fix Wago UI pack imports overwriting previous profiles — importing multiple profiles sequentially no longer corrupts the first imported profile
+* Fix error when duplicating a profile
 
 ## [4.0.5] - 2026-02-14
 
