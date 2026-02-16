@@ -591,6 +591,15 @@ function DF:UpdateUnitFrame(frame, source)
         end
         if frame.nameText then
             local name = DF:GetUnitName(unit) or unit
+            -- Truncate name if needed (UTF-8 aware)
+            local nameLength = db.nameTextLength or 0
+            if nameLength > 0 and DF:UTF8Len(name) > nameLength then
+                if db.nameTextTruncateMode == "ELLIPSIS" then
+                    name = DF:UTF8Sub(name, 1, nameLength) .. "..."
+                else
+                    name = DF:UTF8Sub(name, 1, nameLength)
+                end
+            end
             frame.nameText:SetText(name)
             -- TODO CLEANUP: Color now handled by ElementAppearance via ApplyDeadFade
             -- frame.nameText:SetTextColor(0.5, 0.5, 0.5, 1)

@@ -7592,7 +7592,17 @@ function DF:ProcessRosterUpdate()
     if raidDb.petEnabled and DF.UpdateAllRaidPetFrames then
         DF:UpdateAllRaidPetFrames()
     end
-    
+
+    -- Refresh summon icons on all frames — clears stale "Summon Pending" icons
+    -- when leaving a group or entering an instance (M+ start, zone change)
+    if DF.UpdateSummonIcon and DF.IterateAllFrames then
+        DF:IterateAllFrames(function(frame)
+            if frame and frame.unit then
+                DF:UpdateSummonIcon(frame)
+            end
+        end)
+    end
+
     if DF.debugHeaders then
         print("|cFF00FF00[DF Headers]|r Roster update processed")
     end

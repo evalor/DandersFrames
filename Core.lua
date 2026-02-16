@@ -4223,6 +4223,13 @@ function DF:FullProfileRefresh()
         end
     end
     
+    -- === RECONFIGURE HEADER ORIENTATION ===
+    -- Must be called before layout updates so headers use the new profile's
+    -- growDirection, growthAnchor, and selfPosition settings
+    if DF.ApplyHeaderSettings then
+        DF:ApplyHeaderSettings()
+    end
+
     -- === UPDATE LAYOUTS ===
     -- Update party layout (this handles positioning, visibility, etc.)
     if DF.UpdateAllFrames then
