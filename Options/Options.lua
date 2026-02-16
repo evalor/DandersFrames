@@ -632,6 +632,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         -- Unlike OOR/dead fade which refresh on range/state changes, health fade alpha values
         -- are only re-read during appearance updates, not triggered by FullFrameRefresh alone.
         local function RefreshHealthFade()
+            if DF.InvalidateHealthFadeCurve then DF:InvalidateHealthFadeCurve() end
             DF:RefreshAllVisibleFrames()
             if DF.UpdateAllFrameAppearances then DF:UpdateAllFrameAppearances() end
         end

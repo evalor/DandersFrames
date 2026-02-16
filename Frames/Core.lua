@@ -74,12 +74,13 @@ end
 DF.GetSafeHealthPercent = GetSafeHealthPercent
 
 -- Helper to set health bar value safely
--- When health threshold fading is enabled, a hidden bar receives the same value so its
--- OnValueChanged callback gets the resolved (non-secret) percent and updates dfComputedAboveThreshold.
+-- UnitHealthPercent has SecretReturns=true (see Blizzard_APIDocumentation): we must NOT compare
+-- its return in Lua. A hidden StatusBar receives the same value; its OnValueChanged callback
+-- gets a resolved value we can use for health threshold fading.
 local function SetHealthBarValue(bar, unit, frame)
     if not bar then return end
     
-    -- Get health percent (0-100 with ScaleTo100 curve)
+    -- Get health percent (0-100); may be secret - only pass to StatusBar APIs, do not compare
     local pct = GetSafeHealthPercent(unit)
     
     -- Set bar range and value
@@ -100,7 +101,7 @@ local function SetHealthBarValue(bar, unit, frame)
         bar:SetValue(pct)
     end
 
-    -- Health threshold fading: use a hidden bar so OnValueChanged receives resolved value (safe with secret values)
+    -- Health threshold fading: hidden bar's OnValueChanged receives resolved (comparable) value
     if frame then
         if not frame.dfHealthCheckBar then
             frame.dfHealthCheckBar = CreateFrame("StatusBar", nil, bar)
@@ -112,7 +113,8 @@ local function SetHealthBarValue(bar, unit, frame)
                 if frame then
                     local thresholdDb = frame.isRaidFrame and (DF.GetRaidDB and DF:GetRaidDB()) or (DF.GetDB and DF:GetDB())
                     local threshold = (thresholdDb and thresholdDb.healthFadeThreshold) or 100
-                    frame.dfComputedAboveThreshold = (value >= threshold - 0.5)
+                    -- value is resolved by engine; safe to compare
+                    frame.dfComputedAboveThreshold = (type(value) == "number" and value >= threshold - 0.5)
                     if DF.UpdateHealthFade then
                         DF:UpdateHealthFade(frame)
                     end

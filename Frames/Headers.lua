@@ -8000,7 +8000,6 @@ headerChildEventFrame:SetScript("OnEvent", function(self, event, arg1)
             if frame and frame.dfEventsEnabled ~= false then
                 DF:UpdateHealAbsorb(frame)
             end
-            -- Also update pinned frame showing this unit
             local pinnedFrame = FindPinnedFrameForUnit(unit)
             if pinnedFrame then
                 DF:UpdateHealAbsorb(pinnedFrame)
