@@ -1005,29 +1005,9 @@ function DF:UpdateTestIcons(frame, testData)
         end
         
         if shouldShow then
-            local style = db.roleIconStyle or "BLIZZARD"
-            
-            if style == "CUSTOM" then
-                -- Use custom icons from addon folder
-                if role == "TANK" then
-                    frame.roleIcon.texture:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\DF_Tank")
-                elseif role == "HEALER" then
-                    frame.roleIcon.texture:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\DF_Healer")
-                elseif role == "DAMAGER" then
-                    frame.roleIcon.texture:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\DF_DPS")
-                end
-                frame.roleIcon.texture:SetTexCoord(0, 1, 0, 1)
-            else
-                -- BLIZZARD style
-                frame.roleIcon.texture:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
-                if role == "TANK" then
-                    frame.roleIcon.texture:SetTexCoord(0, 0.296875, 0.296875, 0.65)
-                elseif role == "HEALER" then
-                    frame.roleIcon.texture:SetTexCoord(0.296875, 0.59375, 0, 0.296875)
-                elseif role == "DAMAGER" then
-                    frame.roleIcon.texture:SetTexCoord(0.296875, 0.59375, 0.296875, 0.65)
-                end
-            end
+            local tex, l, r, t, b = DF:GetRoleIconTexture(db, role)
+            frame.roleIcon.texture:SetTexture(tex)
+            frame.roleIcon.texture:SetTexCoord(l, r, t, b)
             
             frame.roleIcon:Show()
             local scale = db.roleIconScale or 1.0
@@ -3495,11 +3475,12 @@ function DF:ShowTestFrames(silent)
         DF:StartTestAnimation()
     end
     
-    -- Update pet frames in test mode
-    if db.petEnabled and DF.UpdateAllPetFrames then
-        DF:UpdateAllPetFrames()
+    -- Initialize and update test pet frames
+    if DF.InitializeTestPetFrames then
+        DF:InitializeTestPetFrames()
+        DF:UpdateAllPetFrames(true)
     end
-    
+
     -- Update dispel overlays for test mode
     if DF.UpdateAllTestDispelGlow then
         C_Timer.After(0.1, function()
@@ -3797,7 +3778,12 @@ function DF:HideTestFrames(silent)
     if DF.testPartyContainer then
         DF.testPartyContainer:Hide()
     end
-    
+
+    -- Hide test pet frames
+    if DF.HideAllTestPetFrames then
+        DF:HideAllTestPetFrames()
+    end
+
     -- Hide personal targeted spell test icons
     if DF.HideTestPersonalTargetedSpells then
         DF:HideTestPersonalTargetedSpells()
@@ -3831,7 +3817,7 @@ function DF:HideTestFrames(silent)
     -- Update pet frames based on real unit data
     if DF.UpdateAllPetFrames then
         C_Timer.After(0.1, function()
-            DF:UpdateAllPetFrames()
+            DF:UpdateAllPetFrames(true)
         end)
     end
     
@@ -3905,7 +3891,7 @@ function DF:ShowRaidTestFrames()
         DF.testPartyContainer:Hide()
     end
     
-    -- Hide party pet frames
+    -- Hide party pet frames (both live and test)
     if DF.petFrames and DF.petFrames.player then
         DF.petFrames.player:Hide()
     end
@@ -3913,6 +3899,9 @@ function DF:ShowRaidTestFrames()
         if DF.partyPetFrames and DF.partyPetFrames[i] then
             DF.partyPetFrames[i]:Hide()
         end
+    end
+    if DF.HideAllTestPetFrames then
+        DF:HideAllTestPetFrames()
     end
     
     -- Position and show test raid container
@@ -3934,32 +3923,33 @@ function DF:ShowRaidTestFrames()
         DF:StartTestAnimation()
     end
     
-    -- Update raid pet frames in test mode
-    if db.petEnabled and DF.UpdateAllRaidPetFrames then
-        DF:UpdateAllRaidPetFrames()
+    -- Initialize and update test raid pet frames
+    if DF.InitializeTestRaidPetFrames then
+        DF:InitializeTestRaidPetFrames()
+        DF:UpdateAllRaidPetFrames(true)
     end
-    
+
     -- Update dispel overlays for test mode
     if DF.UpdateAllTestDispelGlow then
         C_Timer.After(0.1, function()
             DF:UpdateAllTestDispelGlow()
         end)
     end
-    
+
     -- Update my buff indicators for test mode
     if DF.UpdateAllTestMyBuffIndicator then
         C_Timer.After(0.1, function()
             DF:UpdateAllTestMyBuffIndicator()
         end)
     end
-    
+
     -- Update targeted spells for test mode
     if DF.UpdateAllTestTargetedSpell then
         C_Timer.After(0.1, function()
             DF:UpdateAllTestTargetedSpell()
         end)
     end
-    
+
     -- Update GUI
     if DF.GUI and DF.GUI.UpdateThemeColors then
         DF.GUI.UpdateThemeColors()
@@ -3997,12 +3987,17 @@ function DF:HideRaidTestFrames()
     if DF.testRaidContainer then
         DF.testRaidContainer:Hide()
     end
-    
+
+    -- Hide test raid pet frames
+    if DF.HideAllTestRaidPetFrames then
+        DF:HideAllTestRaidPetFrames()
+    end
+
     -- Hide personal targeted spell test icons
     if DF.HideTestPersonalTargetedSpells then
         DF:HideTestPersonalTargetedSpells()
     end
-    
+
     -- Hide group labels (they will be re-shown by UpdateRaidLayout if needed)
     if DF.raidGroupLabels then
         for g = 1, 8 do
@@ -4034,7 +4029,7 @@ function DF:HideRaidTestFrames()
     -- Update raid pet frames based on real unit data
     if DF.UpdateAllRaidPetFrames then
         C_Timer.After(0.1, function()
-            DF:UpdateAllRaidPetFrames()
+            DF:UpdateAllRaidPetFrames(true)
         end)
     end
     
@@ -5729,13 +5724,13 @@ function DF:CreateTestPanel()
             DF:ThrottledUpdateRaidTestFrames()
             -- Update raid pet group layout (only when not dragging to avoid lag)
             if not DF.sliderDragging and DF.UpdateAllRaidPetFrames then
-                DF:UpdateAllRaidPetFrames()
+                DF:UpdateAllRaidPetFrames(true)
             end
         elseif not isRaidMode and DF.testMode then
             DF:ThrottledUpdateAll()
             -- Update party pet group layout (only when not dragging to avoid lag)
             if not DF.sliderDragging and DF.UpdateAllPetFrames then
-                DF:UpdateAllPetFrames()
+                DF:UpdateAllPetFrames(true)
             end
         end
     end)
@@ -5899,28 +5894,21 @@ function DF:CreateTestPanel()
     -- Row 8: Show Pets | Boss Debuffs
     panel.showPetsCheck = CreateCheckbox(panel, y, col1X, "Show Pets", "testShowPets", function(enabled, isRaidMode)
         if isRaidMode then
-            if DF.raidTestMode and DF.UpdateAllRaidPetFrames then
+            if DF.raidTestMode then
                 if enabled then
-                    DF:UpdateAllRaidPetFrames()
+                    if DF.InitializeTestRaidPetFrames then DF:InitializeTestRaidPetFrames() end
+                    if DF.UpdateAllRaidPetFrames then DF:UpdateAllRaidPetFrames(true) end
                 else
-                    for i = 1, 40 do
-                        if DF.raidPetFrames and DF.raidPetFrames[i] then
-                            DF.raidPetFrames[i]:Hide()
-                        end
-                    end
+                    if DF.HideAllTestRaidPetFrames then DF:HideAllTestRaidPetFrames() end
                 end
             end
         else
-            if DF.testMode and DF.UpdateAllPetFrames then
+            if DF.testMode then
                 if enabled then
-                    DF:UpdateAllPetFrames()
+                    if DF.InitializeTestPetFrames then DF:InitializeTestPetFrames() end
+                    if DF.UpdateAllPetFrames then DF:UpdateAllPetFrames(true) end
                 else
-                    if DF.petFrames and DF.petFrames.player then DF.petFrames.player:Hide() end
-                    for i = 1, 4 do
-                        if DF.partyPetFrames and DF.partyPetFrames[i] then
-                            DF.partyPetFrames[i]:Hide()
-                        end
-                    end
+                    if DF.HideAllTestPetFrames then DF:HideAllTestPetFrames() end
                 end
             end
         end

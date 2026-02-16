@@ -207,7 +207,7 @@ function DF:LightweightUpdateFrameSize()
         
         -- Also update pet frames to re-center on new frame sizes
         if DF.UpdateAllPetFrames then
-            DF:UpdateAllPetFrames()
+            DF:UpdateAllPetFrames(true)
         end
     end
 end
@@ -3302,8 +3302,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end
         end
         
+        -- Initialize Debug Console (must happen after SavedVariables are ready)
+        if DF.DebugConsole then
+            DF.DebugConsole:Init()
+        end
+
         print("|cff00ff00DandersFrames|r v" .. DF.VERSION .. " loaded. Type |cffeda55f/df|r for settings, |cffeda55f/df resetgui|r if window is offscreen.")
-        
+
         -- ============================================================
         -- CRITICAL: Initialize frames HERE at ADDON_LOADED
         -- ============================================================
@@ -3570,8 +3575,24 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             elseif msg == "hide" then
                 if DF.HideTestFrames then DF:HideTestFrames() end
             elseif msg == "debug" then
-                DF.debugEnabled = not DF.debugEnabled
-                print("|cff00ff00DandersFrames:|r Debug mode " .. (DF.debugEnabled and "enabled" or "disabled"))
+                if DF.DebugConsole then
+                    local newState = not DF.DebugConsole:IsEnabled()
+                    DF.DebugConsole:SetEnabled(newState)
+                    print("|cff00ff00DandersFrames:|r Debug logging " .. (newState and "enabled" or "disabled"))
+                else
+                    DF.debugEnabled = not DF.debugEnabled
+                    print("|cff00ff00DandersFrames:|r Debug mode " .. (DF.debugEnabled and "enabled" or "disabled"))
+                end
+            elseif msg == "console" then
+                -- Open settings directly to Debug Console tab
+                if not DF.GUIFrame then
+                    DF:ToggleGUI()
+                elseif not DF.GUIFrame:IsShown() then
+                    DF:ToggleGUI()
+                end
+                if DF.GUI and DF.GUI.SelectTab then
+                    DF.GUI.SelectTab("debug_console")
+                end
             elseif msg == "debugrole" then
                 DF.debugRoleIcons = not DF.debugRoleIcons
                 print("|cff00ff00DandersFrames:|r Role icon debug " .. (DF.debugRoleIcons and "enabled" or "disabled"))
@@ -4247,10 +4268,10 @@ function DF:FullProfileRefresh()
     
     -- === UPDATE PET FRAMES ===
     if DF.UpdateAllPetFrames then
-        DF:UpdateAllPetFrames()
+        DF:UpdateAllPetFrames(true)  -- force: profile refresh
     end
     if DF.UpdateAllRaidPetFrames then
-        DF:UpdateAllRaidPetFrames()
+        DF:UpdateAllRaidPetFrames(true)  -- force: profile refresh
     end
     
     -- === REFRESH ELEMENT APPEARANCES (colors, alpha, etc.) ===

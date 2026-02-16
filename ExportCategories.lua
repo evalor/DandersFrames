@@ -479,8 +479,10 @@ DF.ExportCategories = {
         "roleIconHideDPS",
         "roleIconOnlyInCombat",
         "roleIconHideOnlyInCombat",
-        "roleIconHideInCombat",
-        
+        "roleIconExternalTank",
+        "roleIconExternalHealer",
+        "roleIconExternalDPS",
+
         -- Leader Icon
         "leaderIconEnabled",
         "leaderIconAnchor",
