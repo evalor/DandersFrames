@@ -892,6 +892,25 @@ DF.PartyDefaults = {
     fadeDeadStatusText = 1,
     fadeDeadUseCustomColor = false,
 
+    -- Health threshold fading (fade when health above threshold)
+    healthFadeEnabled = false,
+    healthFadeAlpha = 0.5,
+    healthFadeThreshold = 100,
+    hfCancelOnDispel = true,
+    hfElementSpecific = false,
+    hfHealthBarAlpha = 0.3,
+    hfBackgroundAlpha = 0.3,
+    hfNameTextAlpha = 0.5,
+    hfHealthTextAlpha = 0.5,
+    hfAurasAlpha = 0.5,
+    hfIconsAlpha = 0.5,
+    hfDispelOverlayAlpha = 0.3,
+    hfMyBuffIndicatorAlpha = 0.5,
+    hfPowerBarAlpha = 0.3,
+    hfMissingBuffAlpha = 0.5,
+    hfDefensiveIconAlpha = 0.5,
+    hfTargetedSpellAlpha = 0.5,
+
     -- Debuff settings
     debuffAlpha = 1,
     debuffAnchor = "BOTTOMLEFT",
@@ -1436,6 +1455,15 @@ DF.PartyDefaults = {
     resourceBarX = 0,
     resourceBarY = 0,
 
+    -- Class Power (Holy Power, Chi, Combo Points, etc. - player frame only)
+    classPowerEnabled = false,
+    classPowerHeight = 4,
+    classPowerGap = 1,
+    classPowerAnchor = "INSIDE_BOTTOM",
+    classPowerX = 0,
+    classPowerY = -1,
+    classPowerIgnoreFade = true,
+
     -- Rested Indicator
     restedIndicator = false,
     restedIndicatorAnchor = "TOPRIGHT",
@@ -1613,6 +1641,7 @@ DF.PartyDefaults = {
     testShowSelection = false,
     testShowStatusIcons = false,
     testShowTargetedSpell = false,
+    testShowClassPower = true,
 
     -- Tooltip settings
     tooltipAuraAnchor = "DEFAULT",
@@ -1952,6 +1981,25 @@ DF.RaidDefaults = {
     fadeDeadStatusText = 1,
     fadeDeadUseCustomColor = false,
 
+    -- Health threshold fading (fade when health above threshold)
+    healthFadeEnabled = false,
+    healthFadeAlpha = 0.5,
+    healthFadeThreshold = 100,
+    hfCancelOnDispel = true,
+    hfElementSpecific = false,
+    hfHealthBarAlpha = 0.3,
+    hfBackgroundAlpha = 0.3,
+    hfNameTextAlpha = 0.5,
+    hfHealthTextAlpha = 0.5,
+    hfAurasAlpha = 0.5,
+    hfIconsAlpha = 0.5,
+    hfDispelOverlayAlpha = 0.3,
+    hfMyBuffIndicatorAlpha = 0.5,
+    hfPowerBarAlpha = 0.3,
+    hfMissingBuffAlpha = 0.5,
+    hfDefensiveIconAlpha = 0.5,
+    hfTargetedSpellAlpha = 0.5,
+
     -- Debuff settings
     debuffAlpha = 1,
     debuffAnchor = "BOTTOMLEFT",
@@ -2496,6 +2544,15 @@ DF.RaidDefaults = {
     resourceBarX = 0,
     resourceBarY = 0,
 
+    -- Class Power (Holy Power, Chi, Combo Points, etc. - player frame only)
+    classPowerEnabled = false,
+    classPowerHeight = 4,
+    classPowerGap = 1,
+    classPowerAnchor = "INSIDE_BOTTOM",
+    classPowerX = 0,
+    classPowerY = -1,
+    classPowerIgnoreFade = true,
+
     -- Rested Indicator
     restedIndicator = false,
     restedIndicatorAnchor = "TOPRIGHT",
@@ -2673,6 +2730,7 @@ DF.RaidDefaults = {
     testShowSelection = false,
     testShowStatusIcons = false,
     testShowTargetedSpell = false,
+    testShowClassPower = true,
 
     -- Tooltip settings
     tooltipAuraAnchor = "DEFAULT",

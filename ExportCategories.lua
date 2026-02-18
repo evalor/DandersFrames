@@ -149,6 +149,15 @@ DF.ExportCategories = {
         "resourceBarBorderColor",
         "resourceBarFrameLevel",
         
+        -- Class Power (player frame pips)
+        "classPowerEnabled",
+        "classPowerHeight",
+        "classPowerGap",
+        "classPowerAnchor",
+        "classPowerX",
+        "classPowerY",
+        "classPowerIgnoreFade",
+        
         -- Absorb Bar
         "absorbBarMode",
         "absorbBarAnchor",
@@ -839,6 +848,25 @@ DF.ExportCategories = {
         "hoverHighlightMode",
         "hoverHighlightThickness",
         
+        -- Health Threshold Fading
+        "healthFadeEnabled",
+        "healthFadeAlpha",
+        "healthFadeThreshold",
+        "hfCancelOnDispel",
+        "hfElementSpecific",
+        "hfHealthBarAlpha",
+        "hfBackgroundAlpha",
+        "hfNameTextAlpha",
+        "hfHealthTextAlpha",
+        "hfAurasAlpha",
+        "hfIconsAlpha",
+        "hfDispelOverlayAlpha",
+        "hfMyBuffIndicatorAlpha",
+        "hfPowerBarAlpha",
+        "hfMissingBuffAlpha",
+        "hfDefensiveIconAlpha",
+        "hfTargetedSpellAlpha",
+
         -- Out of Range
         "oorEnabled",
         "rangeAlpha",
@@ -981,6 +1009,7 @@ DF.ExportCategories = {
         "testBossDebuffCount",
         "testShowBossDebuffs",
         "testShowTargetedSpell",
+        "testShowClassPower",
     },
     
     -- ===========================================

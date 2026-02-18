@@ -4891,6 +4891,11 @@ function DF:UpdateHeaderVisibility()
             end
         end
     end
+
+    -- Class Power pips attach to party or raid player frame; refresh so they re-attach to the now-visible layout
+    if DF.RefreshClassPower then
+        DF:RefreshClassPower()
+    end
 end
 
 function DF:UpdateRaidHeaderVisibility()
@@ -8005,7 +8010,6 @@ headerChildEventFrame:SetScript("OnEvent", function(self, event, arg1)
             if frame and frame.dfEventsEnabled ~= false then
                 DF:UpdateHealAbsorb(frame)
             end
-            -- Also update pinned frame showing this unit
             local pinnedFrame = FindPinnedFrameForUnit(unit)
             if pinnedFrame then
                 DF:UpdateHealAbsorb(pinnedFrame)

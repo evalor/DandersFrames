@@ -339,7 +339,30 @@ function DF:UpdateTestFrameHealthOnly(frame, index)
     
     -- Update health bar
     frame.healthBar:SetValue(health)
-    
+
+    -- Re-evaluate health fade threshold with animated health value
+    if db.healthFadeEnabled then
+        local healthPct = health * 100
+        local threshold = db.healthFadeThreshold or 100
+        local isAbove = (healthPct >= threshold - 0.5)
+        if isAbove and db.hfCancelOnDispel and frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown() then
+            isAbove = false
+        end
+        if isAbove then
+            if db.hfElementSpecific then
+                frame.healthBar:SetAlpha(db.hfHealthBarAlpha or 0.5)
+            elseif not db.oorEnabled then
+                frame:SetAlpha(db.healthFadeAlpha or 0.5)
+            end
+        else
+            if db.hfElementSpecific then
+                frame.healthBar:SetAlpha(1.0)
+            elseif not db.oorEnabled then
+                frame:SetAlpha(1.0)
+            end
+        end
+    end
+
     -- Update missing health bar if enabled
     if frame.missingHealthBar then
         local backgroundMode = db.backgroundMode or "BACKGROUND"
@@ -662,8 +685,51 @@ function DF:UpdateTestFrame(frame, index, applyLayout)
         frame.dfTestDeadFadeAlphas = nil
     end
     
+    -- Health-based fading (above threshold): only when in range, alive, and option enabled
+    local healthPct = (testData.healthPercent or 1) * 100
+    local threshold = db.healthFadeThreshold or 100
+    local isAboveHealthThreshold = not isOutOfRange and not applyDeadFade
+        and db.healthFadeEnabled
+        and (healthPct >= threshold - 0.5)
+    if isAboveHealthThreshold and db.hfCancelOnDispel and frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown() then
+        isAboveHealthThreshold = false
+    end
+    
+    if isAboveHealthThreshold then
+        if db.hfElementSpecific then
+            healthBarAlpha = db.hfHealthBarAlpha or 0.5
+            backgroundAlpha = db.hfBackgroundAlpha or 0.5
+            nameAlpha = db.hfNameTextAlpha or 0.5
+            healthTextAlpha = db.hfHealthTextAlpha or 0.5
+            aurasAlpha = db.hfAurasAlpha or 0.5
+            iconsAlpha = db.hfIconsAlpha or 0.5
+            powerBarAlpha = db.hfPowerBarAlpha or 0.5
+            dispelAlpha = db.hfDispelOverlayAlpha or 0.5
+            targetedSpellAlpha = db.hfTargetedSpellAlpha or 0.5
+        else
+            local hfAlpha = db.healthFadeAlpha or 0.5
+            healthBarAlpha = hfAlpha
+            backgroundAlpha = hfAlpha
+            nameAlpha = hfAlpha
+            healthTextAlpha = hfAlpha
+            aurasAlpha = hfAlpha
+            iconsAlpha = hfAlpha
+            powerBarAlpha = hfAlpha
+            dispelAlpha = hfAlpha
+            targetedSpellAlpha = hfAlpha
+        end
+        frame.dfTestHealthFadeAlphas = {
+            icons = iconsAlpha,
+            power = powerBarAlpha,
+            dispel = dispelAlpha,
+            targetedSpell = targetedSpellAlpha,
+        }
+    else
+        frame.dfTestHealthFadeAlphas = nil
+    end
+    
     -- Update name color with appropriate alpha
-    -- OOR takes priority over dead fade
+    -- Priority: OOR > dead fade > health-based fade
     local finalNameAlpha = nameAlpha
     if not isOutOfRange and applyDeadFade then
         finalNameAlpha = db.fadeDeadName or 1.0
@@ -813,6 +879,19 @@ function DF:UpdateTestFrame(frame, index, applyLayout)
                 frame.background:SetVertexColor(0, 0, 0, 0.8 * backgroundAlpha)
             end
         end
+    end
+    
+    -- Frame-level alpha when not using element-specific OOR (same as live UpdateFrameAppearance)
+    if not db.oorEnabled then
+        if isOutOfRange then
+            frame:SetAlpha(db.rangeFadeAlpha or db.rangeAlpha or 0.55)
+        elseif isAboveHealthThreshold and not db.hfElementSpecific then
+            frame:SetAlpha(db.healthFadeAlpha or 0.5)
+        else
+            frame:SetAlpha(1)
+        end
+    else
+        frame:SetAlpha(1)
     end
     
     -- Apply alpha to health text
@@ -1164,14 +1243,14 @@ function DF:UpdateTestIcons(frame, testData)
         end
     end
     
-    -- Apply alpha to icons - check dead fade first, then OOR alpha
+    -- Apply alpha to icons - check dead fade first, then health-based fade, then OOR alpha
     local alpha = 1.0
     if frame.dfTestDeadFadeAlphas and frame.dfTestDeadFadeAlphas.icons then
-        -- Dead fade takes priority
         alpha = frame.dfTestDeadFadeAlphas.icons
     elseif frame.dfDeadFadeApplied then
-        -- Dead fade already applied the correct alpha in ApplyDeadFade, don't override
         return
+    elseif frame.dfTestHealthFadeAlphas and frame.dfTestHealthFadeAlphas.icons then
+        alpha = frame.dfTestHealthFadeAlphas.icons
     elseif frame.dfTestOORAlphas and frame.dfTestOORAlphas.icons then
         alpha = frame.dfTestOORAlphas.icons
     end
@@ -1615,12 +1694,14 @@ function DF:UpdateTestStatusIcons(frame, testData)
         end
     end
     
-    -- Apply alpha to status icons based on dead/OOR fade
+    -- Apply alpha to status icons based on dead / health-based / OOR fade
     local alpha = 1.0
     if frame.dfTestDeadFadeAlphas and frame.dfTestDeadFadeAlphas.icons then
         alpha = frame.dfTestDeadFadeAlphas.icons
     elseif frame.dfDeadFadeApplied then
         return
+    elseif frame.dfTestHealthFadeAlphas and frame.dfTestHealthFadeAlphas.icons then
+        alpha = frame.dfTestHealthFadeAlphas.icons
     elseif frame.dfTestOORAlphas and frame.dfTestOORAlphas.icons then
         alpha = frame.dfTestOORAlphas.icons
     end
@@ -3411,11 +3492,12 @@ function DF:UpdateTestPowerBar(frame, testData)
         end
     end
     
-    -- Apply OOR alpha or dead fade alpha
+    -- Apply dead / health-based / OOR alpha
     local alpha = 1.0
     if frame.dfTestDeadFadeAlphas and frame.dfTestDeadFadeAlphas.power then
-        -- Dead fade takes priority
         alpha = frame.dfTestDeadFadeAlphas.power
+    elseif frame.dfTestHealthFadeAlphas and frame.dfTestHealthFadeAlphas.power then
+        alpha = frame.dfTestHealthFadeAlphas.power
     elseif frame.dfTestOORAlphas and frame.dfTestOORAlphas.power then
         alpha = frame.dfTestOORAlphas.power
     end
@@ -3500,6 +3582,11 @@ function DF:ShowTestFrames(silent)
         C_Timer.After(0.1, function()
             DF:UpdateAllTestTargetedSpell()
         end)
+    end
+    
+    -- Refresh class power (show/hide based on testShowClassPower)
+    if DF.RefreshClassPower then
+        DF:RefreshClassPower()
     end
     
     if not silent then
@@ -3795,6 +3882,9 @@ function DF:HideTestFrames(silent)
     if not InCombatLockdown() then
         if DF.UpdateHeaderVisibility then
             DF:UpdateHeaderVisibility()
+        end
+        if DF.RefreshClassPower then
+            DF:RefreshClassPower()
         end
     end
     
@@ -5123,8 +5213,10 @@ function DF:UpdateTestTargetedSpell(frame, testData)
         local durationColor = db.targetedSpellDurationColor or {r = 1, g = 1, b = 1}
         local alpha = db.targetedSpellAlpha or 1.0
         
-        -- Apply OOR alpha if frame is out of range
-        if frame.dfTestOORAlphas and frame.dfTestOORAlphas.targetedSpell then
+        -- Apply health-based or OOR alpha in test mode
+        if frame.dfTestHealthFadeAlphas and frame.dfTestHealthFadeAlphas.targetedSpell then
+            alpha = alpha * frame.dfTestHealthFadeAlphas.targetedSpell
+        elseif frame.dfTestOORAlphas and frame.dfTestOORAlphas.targetedSpell then
             alpha = alpha * frame.dfTestOORAlphas.targetedSpell
         end
         
@@ -5942,6 +6034,12 @@ function DF:CreateTestPanel()
             end
         end
     end, "auras_bossdebuffs")
+    y = y - checkHeight
+    
+    -- Row 9: Class Power (player frame only - party test mode)
+    panel.showClassPowerCheck = CreateCheckbox(panel, y, col1X, "Class Power", "testShowClassPower", function()
+        if DF.RefreshClassPower then DF.RefreshClassPower() end
+    end, "bars_classpower")
     y = y - checkHeight + 2  -- Slightly reduced gap before sliders
     
     -- Helper to create clickable label that links to settings

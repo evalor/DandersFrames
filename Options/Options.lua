@@ -457,7 +457,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     local pageFading = CreateSubTab("display", "display_fading", "Fading")
     BuildPage(pageFading, function(self, db, Add, AddSpace, AddSyncPoint)
         -- Copy button at top right
-        Add(CreateCopyButton(self.child, {"rangeFade", "oor", "dead", "offline"}, "Fading", "display_fading"), 25, 2)
+        Add(CreateCopyButton(self.child, {"rangeFade", "oor", "dead", "offline", "healthFade", "hf"}, "Fading", "display_fading"), 25, 2)
         
         -- Sync point: ensures both columns start below the copy button
         AddSpace(10, "both")
@@ -693,6 +693,87 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         deadBgColor.hideOn = HideDeadBgColor
         
         Add(deadGroup, nil, 2)
+        
+        -- ===== HEALTH THRESHOLD FADING (above health threshold) =====
+        AddSpace(20, "both")
+        local hfGroup = GUI:CreateSettingsGroup(self.child, 560)
+        hfGroup:AddWidget(GUI:CreateHeader(self.child, "Health Threshold Fading"), 40)
+        hfGroup.tooltip = "Fade frames or elements when a unit's health is above the set threshold (e.g. 100% or 80%)."
+
+        hfGroup:AddWidget(GUI:CreateCheckbox(self.child, "Enable Health Threshold Fade", db, "healthFadeEnabled", function()
+            self:RefreshStates()
+            DF:UpdateAllFrames()
+            DF:RefreshAllVisibleFrames()
+        end), 30)
+
+        local function HideHFOptions(d)
+            return not d.healthFadeEnabled
+        end
+        local function HideHFElementOptions(d)
+            return not d.healthFadeEnabled or not d.hfElementSpecific
+        end
+        local function HideHFFrameAlpha(d)
+            return not d.healthFadeEnabled or d.hfElementSpecific
+        end
+
+        local hfThreshold = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Health Threshold (%)", 50, 100, 1, db, "healthFadeThreshold", function()
+            DF:UpdateAllFrames()
+            DF:RefreshAllVisibleFrames()
+        end), 55)
+        hfThreshold.hideOn = HideHFOptions
+        hfThreshold.tooltip = "Units at or above this health percent are faded."
+
+        local hfCancelDispel = hfGroup:AddWidget(GUI:CreateCheckbox(self.child, "Cancel Fade on Dispellable Debuff", db, "hfCancelOnDispel", function()
+            DF:UpdateAllFrames()
+            DF:RefreshAllVisibleFrames()
+        end), 30)
+        hfCancelDispel.hideOn = HideHFOptions
+
+        -- Health fade sliders need UpdateAllFrameAppearances to force an immediate visual refresh.
+        -- Unlike OOR/dead fade which refresh on range/state changes, health fade alpha values
+        -- are only re-read during appearance updates, not triggered by FullFrameRefresh alone.
+        local function RefreshHealthFade()
+            if DF.InvalidateHealthFadeCurve then DF:InvalidateHealthFadeCurve() end
+            DF:RefreshAllVisibleFrames()
+            if DF.UpdateAllFrameAppearances then DF:UpdateAllFrameAppearances() end
+        end
+
+        local hfFrameAlpha = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Frame Alpha (Above Threshold)", 0.1, 1.0, 0.05, db, "healthFadeAlpha", nil, RefreshHealthFade, true), 55)
+        hfFrameAlpha.hideOn = HideHFFrameAlpha
+        hfFrameAlpha.tooltip = "Frame opacity when health is above the threshold (element-specific disabled)."
+
+        local hfElementSpecific = hfGroup:AddWidget(GUI:CreateCheckbox(self.child, "Enable Element-Specific Alpha", db, "hfElementSpecific", function()
+            self:RefreshStates()
+            RefreshHealthFade()
+        end), 30)
+        hfElementSpecific.hideOn = HideHFOptions
+
+        local hfHealth = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Health Bar Alpha", 0.0, 1.0, 0.05, db, "hfHealthBarAlpha", nil, RefreshHealthFade, true), 55)
+        hfHealth.hideOn = HideHFElementOptions
+        local hfBg = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Background Alpha", 0.0, 1.0, 0.05, db, "hfBackgroundAlpha", nil, RefreshHealthFade, true), 55)
+        hfBg.hideOn = HideHFElementOptions
+        local hfName = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Name Text Alpha", 0.0, 1.0, 0.05, db, "hfNameTextAlpha", nil, RefreshHealthFade, true), 55)
+        hfName.hideOn = HideHFElementOptions
+        local hfHealthText = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Health Text Alpha", 0.0, 1.0, 0.05, db, "hfHealthTextAlpha", nil, RefreshHealthFade, true), 55)
+        hfHealthText.hideOn = HideHFElementOptions
+        local hfAuras = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Auras Alpha", 0.0, 1.0, 0.05, db, "hfAurasAlpha", nil, RefreshHealthFade, true), 55)
+        hfAuras.hideOn = HideHFElementOptions
+        local hfIcons = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Icons Alpha", 0.0, 1.0, 0.05, db, "hfIconsAlpha", nil, RefreshHealthFade, true), 55)
+        hfIcons.hideOn = HideHFElementOptions
+        local hfDispel = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Dispel Overlay Alpha", 0.0, 1.0, 0.05, db, "hfDispelOverlayAlpha", nil, RefreshHealthFade, true), 55)
+        hfDispel.hideOn = HideHFElementOptions
+        local hfMyBuff = hfGroup:AddWidget(GUI:CreateSlider(self.child, "My Buff Indicator Alpha", 0.0, 1.0, 0.05, db, "hfMyBuffIndicatorAlpha", nil, RefreshHealthFade, true), 55)
+        hfMyBuff.hideOn = HideHFElementOptions
+        local hfPower = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Power Bar Alpha", 0.0, 1.0, 0.05, db, "hfPowerBarAlpha", nil, RefreshHealthFade, true), 55)
+        hfPower.hideOn = HideHFElementOptions
+        local hfMissingBuff = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Missing Buff Alpha", 0.0, 1.0, 0.05, db, "hfMissingBuffAlpha", nil, RefreshHealthFade, true), 55)
+        hfMissingBuff.hideOn = HideHFElementOptions
+        local hfDefensive = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Defensive Icon Alpha", 0.0, 1.0, 0.05, db, "hfDefensiveIconAlpha", nil, RefreshHealthFade, true), 55)
+        hfDefensive.hideOn = HideHFElementOptions
+        local hfTargetedSpell = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Targeted Spell Alpha", 0.0, 1.0, 0.05, db, "hfTargetedSpellAlpha", nil, RefreshHealthFade, true), 55)
+        hfTargetedSpell.hideOn = HideHFElementOptions
+
+        Add(hfGroup, nil, "both")
         
         -- See Also links
         AddSpace(20, "both")
@@ -2844,6 +2925,54 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         colorGroup:AddWidget(resetPowerBtn, 30)
         
         Add(colorGroup, nil, 2)
+    end)
+    
+    -- Bars > Class Power (Holy Power, Chi, Combo Points, etc. - player frame only)
+    local pageClassPower = CreateSubTab("bars", "bars_classpower", "Class Power")
+    BuildPage(pageClassPower, function(self, db, Add, AddSpace, AddSyncPoint)
+        Add(CreateCopyButton(self.child, {"classPower"}, "Class Power"), 25, 2)
+        Add(GUI:CreateHeader(self.child, "Class Power Pips"), 40, "both")
+        Add(GUI:CreateLabel(self.child, "Displays class-specific resources (Holy Power, Chi, Combo Points, Soul Shards, Arcane Charges, Essence) as colored pips on your player frame.", 560), 50, "both")
+        AddSpace(10, "both")
+        
+        Add(GUI:CreateCheckbox(self.child, "Enable Class Power Pips", db, "classPowerEnabled", function()
+            self:RefreshStates()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end), 25, 1)
+        
+        local function HideClassPower(d)
+            return not d.classPowerEnabled
+        end
+        
+        AddSpace(10, 1)
+        Add(GUI:CreateHeader(self.child, "Size"), 40, 1)
+        
+        local cpHeight = Add(GUI:CreateSlider(self.child, "Pip Height", 1, 12, 1, db, "classPowerHeight", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 1)
+        cpHeight.hideOn = HideClassPower
+        
+        local cpGap = Add(GUI:CreateSlider(self.child, "Gap Between Pips", 0, 5, 1, db, "classPowerGap", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 1)
+        cpGap.hideOn = HideClassPower
+        
+        local cpIgnoreFade = Add(GUI:CreateCheckbox(self.child, "Ignore Full Health Fade", db, "classPowerIgnoreFade", function()
+            if DF.UpdateClassPowerAlpha then DF.UpdateClassPowerAlpha() end
+        end), 25, 1)
+        cpIgnoreFade.hideOn = HideClassPower
+        
+        Add(GUI:CreateHeader(self.child, "Position"), 40, 2)
+        local anchorOptions = {
+            INSIDE_BOTTOM = "Inside (Bottom)",
+            INSIDE_TOP = "Inside (Top)",
+            BOTTOM = "Below Health Bar",
+            TOP = "Above Health Bar",
+        }
+        local cpAnchor = Add(GUI:CreateDropdown(self.child, "Anchor", anchorOptions, db, "classPowerAnchor", function() if DF.RefreshClassPower then DF.RefreshClassPower() end end), 55, 2)
+        cpAnchor.hideOn = HideClassPower
+        
+        local cpX = Add(GUI:CreateSlider(self.child, "Offset X", -30, 30, 1, db, "classPowerX", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 2)
+        cpX.hideOn = HideClassPower
+        
+        local cpY = Add(GUI:CreateSlider(self.child, "Offset Y", -20, 20, 1, db, "classPowerY", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 2)
+        cpY.hideOn = HideClassPower
     end)
     
     -- Bars > Absorbs (combined Absorb Shield + Heal Absorb with collapsible sections)
