@@ -428,7 +428,15 @@ function CC:ApplyBindings()
     
     -- Build unified macro map (all bindings converted to macros)
     self.unifiedMacroMap = self:BuildUnifiedMacroMap()
-    
+
+    -- Debug: count bindings and macro map entries
+    local bindingCount = self.db.bindings and #self.db.bindings or 0
+    local mapCount = 0
+    if self.unifiedMacroMap then
+        for _ in pairs(self.unifiedMacroMap) do mapCount = mapCount + 1 end
+    end
+    DF:Debug("CLICK", "ApplyBindings: %d bindings in db, %d entries in macroMap, enabled=%s", bindingCount, mapCount, tostring(self.db.enabled))
+
     -- Set up hovercast button attributes for third-party frame support
     self:SetupHovercastButtonAttributes()
     
