@@ -65,6 +65,8 @@ Features\PrivateAuras.lua
 Features\Highlights.lua
 Features\ElementAppearance.lua
 Features\Range.lua
+Features\HealthFade.lua
+Features\ClassPower.lua
 Features\Sort.lua
 Features\SecureSort.lua
 Features\Dispel.lua
