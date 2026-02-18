@@ -24,11 +24,19 @@
 * Fix click-casting not working when clicking on aura/defensive icons — mouse click events were not propagating to the parent unit button
 * Fix click-casting "Spell not learned" when queuing as different spec — macros now resolve the current spec's spell override instead of using the stored root spell name
 * Fix absorb bar not fading when unit is out of range — health event updates were overwriting the OOR alpha on every tick
+* Fix pet health fade crash from secret number arithmetic — pet health APIs return opaque values that can't be compared directly
+* Fix health fade not working in test mode — setting keys were mismatched between Config defaults and TestMode references
+* Fix health fade threshold slider causing lag during drag — callback parameters were in the wrong position
+* Fix health fade not updating during test mode animate health — animation ticker now re-evaluates the fade threshold
 
 ### New Features
 * Add "Sync with Raid/Party" toggle per settings page — keeps party and raid settings in sync automatically when enabled, with per-profile persistence (contributed by Enf0)
 * Add health fade system — fades frames or individual elements when a unit's health is above a configurable threshold, with per-element alpha controls, dispel cancel override, and test mode support (contributed by X-Steeve)
-* Add class power pips — displays class-specific resources (Holy Power, Chi, Combo Points, Soul Shards, Arcane Charges, Essence) on the player's party/raid frame as colored pips with configurable size, position, and anchor
+* Add class power pips — displays class-specific resources (Holy Power, Chi, Combo Points, Soul Shards, Arcane Charges, Essence) on the player's party/raid frame as colored pips with configurable size, position, and anchor (contributed by X-Steeve)
+* Add class power pip color options — custom foreground color toggle and background color picker with alpha
+* Add vertical pip layout — LEFT/RIGHT anchor positions stack pips along the frame side
+* Add class power role filter — checkboxes to show pips only for tank, healer, or DPS roles
+* Add class power test mode multi-frame support — all relevant class test frames now show partially filled pips for preview
 * Auto-show changelog when opening settings for the first time after an update
 * Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
