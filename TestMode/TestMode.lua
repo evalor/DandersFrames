@@ -3421,6 +3421,14 @@ function DF:UpdateTestPowerBar(frame, testData)
         showBar = false
     end
 
+    -- Check class-based filtering
+    if showBar then
+        local classFilter = db.resourceBarClassFilter
+        if classFilter and testData.class and classFilter[testData.class] == false then
+            showBar = false
+        end
+    end
+
     if not showBar then
         if frame.dfPowerBar then frame.dfPowerBar:Hide() end
         return

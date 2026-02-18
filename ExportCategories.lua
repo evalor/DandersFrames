@@ -145,6 +145,7 @@ DF.ExportCategories = {
         "resourceBarShowTank",
         "resourceBarShowDPS",
         "resourceBarShowInSoloMode",
+        "resourceBarClassFilter",
         "resourceBarBackgroundEnabled",
         "resourceBarBackgroundColor",
         "resourceBarBorderEnabled",

@@ -2799,7 +2799,43 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         showInSolo.hideOn = function() return GUI.SelectedMode == "raid" end
         settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Smooth Bar Animation", db, "resourceBarSmooth", function() DF:UpdateAllFrames() end), 30)
         Add(settingsGroup, nil, 1)
-        
+
+        -- ===== CLASS FILTER GROUP (Column 1) =====
+        local classFilterGroup = GUI:CreateSettingsGroup(self.child, 280)
+        classFilterGroup:AddWidget(GUI:CreateHeader(self.child, "Class Filter"), 40)
+
+        local RB_CLASS_LIST = {
+            { token = "WARRIOR",      name = "Warrior" },
+            { token = "PALADIN",      name = "Paladin" },
+            { token = "HUNTER",       name = "Hunter" },
+            { token = "ROGUE",        name = "Rogue" },
+            { token = "PRIEST",       name = "Priest" },
+            { token = "DEATHKNIGHT",  name = "Death Knight" },
+            { token = "SHAMAN",       name = "Shaman" },
+            { token = "MAGE",         name = "Mage" },
+            { token = "WARLOCK",      name = "Warlock" },
+            { token = "MONK",         name = "Monk" },
+            { token = "DRUID",        name = "Druid" },
+            { token = "DEMONHUNTER",  name = "Demon Hunter" },
+            { token = "EVOKER",       name = "Evoker" },
+        }
+
+        if not db.resourceBarClassFilter then
+            db.resourceBarClassFilter = {}
+            for _, info in ipairs(RB_CLASS_LIST) do
+                db.resourceBarClassFilter[info.token] = true
+            end
+        end
+
+        for _, info in ipairs(RB_CLASS_LIST) do
+            classFilterGroup:AddWidget(
+                GUI:CreateCheckbox(self.child, info.name, db.resourceBarClassFilter, info.token, function()
+                    DF:UpdateAllFrames()
+                end), 25
+            )
+        end
+        Add(classFilterGroup, nil, 1)
+
         -- ===== POSITION GROUP (Column 2) =====
         local positionGroup = GUI:CreateSettingsGroup(self.child, 280)
         positionGroup:AddWidget(GUI:CreateHeader(self.child, "Position"), 40)

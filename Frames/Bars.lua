@@ -14,6 +14,7 @@ local UnitIsGroupAssistant = UnitIsGroupAssistant
 local GetRaidTargetIndex = GetRaidTargetIndex
 local GetReadyCheckStatus = GetReadyCheckStatus
 local SetRaidTargetIconTexture = SetRaidTargetIconTexture
+local UnitClass = UnitClass
 local issecretvalue = issecretvalue or function() return false end
 local pcall = pcall
 
@@ -21,11 +22,14 @@ local pcall = pcall
 -- RESOURCE BAR LOGIC
 -- ============================================================
 
--- Centralized role-filter check for resource bar visibility
+-- Centralized role and class filter check for resource bar visibility
 -- Returns true if the resource bar should be shown for this unit
+-- Unit must pass BOTH role filter AND class filter
 function DF:ShouldShowResourceBar(unit, db)
     if not db.resourceBarEnabled then return false end
 
+    -- Role filter
+    local roleAllowed = false
     local hasAnyRoleFilter = db.resourceBarShowHealer or db.resourceBarShowTank or db.resourceBarShowDPS
 
     if hasAnyRoleFilter then
@@ -33,22 +37,31 @@ function DF:ShouldShowResourceBar(unit, db)
         local inSoloMode = not IsInGroup() and not IsInRaid()
 
         if inSoloMode and db.resourceBarShowInSoloMode then
-            return true
+            roleAllowed = true
         elseif role == "HEALER" then
-            return db.resourceBarShowHealer == true
+            roleAllowed = db.resourceBarShowHealer == true
         elseif role == "TANK" then
-            return db.resourceBarShowTank == true
+            roleAllowed = db.resourceBarShowTank == true
         elseif role == "DAMAGER" then
-            return db.resourceBarShowDPS == true
-        else
-            -- "NONE" role (no role assigned)
-            return false
+            roleAllowed = db.resourceBarShowDPS == true
         end
     else
-        -- All three toggles off: hide for everyone except solo override
         local inSoloMode = not IsInGroup() and not IsInRaid()
-        return inSoloMode and db.resourceBarShowInSoloMode == true
+        roleAllowed = inSoloMode and db.resourceBarShowInSoloMode == true
     end
+
+    if not roleAllowed then return false end
+
+    -- Class filter (unit must also pass)
+    local classFilter = db.resourceBarClassFilter
+    if classFilter then
+        local _, classToken = UnitClass(unit)
+        if classToken and classFilter[classToken] == false then
+            return false
+        end
+    end
+
+    return true
 end
 
 function DF:ApplyResourceBarLayout(frame)
