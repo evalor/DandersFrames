@@ -198,7 +198,13 @@ function DF:LightweightUpdateFrameSize()
         end
         
         IterateFramesInMode(mode, UpdateFrame)
-        
+
+        -- Re-apply header settings so the container and header anchors
+        -- update to match the new frame dimensions during slider drag
+        if DF.headersInitialized and DF.ApplyHeaderSettings then
+            DF:ApplyHeaderSettings()
+        end
+
         -- Update positioning for test frames
         if DF.testMode and DF.LightweightPositionPartyTestFrames then
             local testFrameCount = db.testFrameCount or 5

@@ -3,6 +3,7 @@
 ## [4.0.7] - 2026-02-18
 
 ### Bug Fixes
+* Fix party frame container not repositioning when dragging the frame width or height slider — lightweight size update now re-applies header settings during drag
 * Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
 * Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
 * Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
