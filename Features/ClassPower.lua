@@ -12,6 +12,7 @@ local UnitPower = UnitPower
 local UnitPowerMax = UnitPowerMax
 local UnitClass = UnitClass
 local UnitIsUnit = UnitIsUnit
+local IsInRaid = IsInRaid
 
 -- ============================================================
 -- CLASS POWER MAPPING

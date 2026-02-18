@@ -5,48 +5,19 @@ local addonName, DF = ...
 -- Fades frames/elements when a unit's health is above a configurable
 -- threshold. UnitHealthPercent has SecretReturns=true (Blizzard API doc):
 -- we use a hidden StatusBar in Core.lua whose OnValueChanged receives
--- a resolved value; dfComputedAboveThreshold is set there. Cancel-on-dispel
+-- a resolved value; dfComputedAboveThreshold is set there.
 -- Cancel-on-dispel supported.
 -- ============================================================
 
 -- Upvalue all frequently used globals for performance
 local UnitExists = UnitExists
-local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitIsConnected = UnitIsConnected
-local CreateColor = CreateColor
+local UnitHealth = UnitHealth
+local UnitHealthMax = UnitHealthMax
+local issecretvalue = issecretvalue or function() return false end
 
--- ============================================================
--- HEALTH FADE CURVE
--- Maps normalized health (0-1) to alpha: below threshold = 1, at/above = fadeAlpha.
--- UnitHealthPercent(unit, true, curve) returns a ColorMixin; we use the alpha component.
--- ============================================================
-
-local healthFadeCurveCache = {}
-
-local function GetHealthFadeCurve(db)
-    if not db or not db.healthFadeEnabled then return nil end
-    local threshold = (db.healthFadeThreshold or 100) / 100
-    local fadeAlpha = db.healthFadeAlpha or 0.5
-    local cacheKey = ("%.4f_%.4f"):format(threshold, fadeAlpha)
-    if healthFadeCurveCache[cacheKey] then
-        return healthFadeCurveCache[cacheKey]
-    end
-    if not C_CurveUtil or not C_CurveUtil.CreateColorCurve then return nil end
-    local curve = C_CurveUtil.CreateColorCurve()
-    curve:SetType(Enum.LuaCurveType.Step)
-    -- Below threshold: full opacity
-    curve:AddPoint(0.0, CreateColor(1, 1, 1, 1))
-    curve:AddPoint(threshold, CreateColor(1, 1, 1, 1))
-    -- At/above threshold: faded
-    curve:AddPoint(math.min(threshold + 0.00001, 1), CreateColor(1, 1, 1, fadeAlpha))
-    curve:AddPoint(1.0, CreateColor(1, 1, 1, fadeAlpha))
-    healthFadeCurveCache[cacheKey] = curve
-    return curve
-end
-
--- Invalidate curve cache when options change (e.g. threshold/alpha)
+-- Invalidate curve cache when options change (called from Options.lua)
 function DF:InvalidateHealthFadeCurve()
-    healthFadeCurveCache = {}
+    -- Reserved for future curve-based implementation
 end
 
 -- ============================================================
@@ -116,8 +87,9 @@ local function GetPetHealthPercent(unit)
     if not unit or not UnitExists(unit) then return 0 end
     local cur = UnitHealth(unit, true)
     local max = UnitHealthMax(unit, true)
-    if not cur or not max or max == 0 then return 0 end
-    if type(cur) ~= "number" or type(max) ~= "number" then return 0 end
+    if not cur or not max then return 0 end
+    if issecretvalue(cur) or issecretvalue(max) then return 0 end
+    if max == 0 then return 0 end
     return (cur / max) * 100
 end
 
@@ -166,26 +138,27 @@ end
 -- Used by ElementAppearance.lua. For frame-level fade, can use curve alpha.
 -- ============================================================
 
+local HEALTH_FADE_ALPHA_MAP = {
+    healthBar = "hfHealthBarAlpha",
+    background = "hfBackgroundAlpha",
+    nameText = "hfNameTextAlpha",
+    healthText = "hfHealthTextAlpha",
+    auras = "hfAurasAlpha",
+    icons = "hfIconsAlpha",
+    dispelOverlay = "hfDispelOverlayAlpha",
+    powerBar = "hfPowerBarAlpha",
+    missingBuff = "hfMissingBuffAlpha",
+    defensiveIcon = "hfDefensiveIconAlpha",
+    targetedSpell = "hfTargetedSpellAlpha",
+    myBuffIndicator = "hfMyBuffIndicatorAlpha",
+    frame = "healthFadeAlpha",
+}
+
 function DF:GetHealthFadeAlpha(frame, elementKey)
     if not frame then return 1.0 end
     local db = frame.isRaidFrame and DF:GetRaidDB() or DF:GetDB()
     if not db then return 1.0 end
-    local alphaMap = {
-        healthBar = "hfHealthBarAlpha",
-        background = "hfBackgroundAlpha",
-        nameText = "hfNameTextAlpha",
-        healthText = "hfHealthTextAlpha",
-        auras = "hfAurasAlpha",
-        icons = "hfIconsAlpha",
-        dispelOverlay = "hfDispelOverlayAlpha",
-        powerBar = "hfPowerBarAlpha",
-        missingBuff = "hfMissingBuffAlpha",
-        defensiveIcon = "hfDefensiveIconAlpha",
-        targetedSpell = "hfTargetedSpellAlpha",
-        myBuffIndicator = "hfMyBuffIndicatorAlpha",
-        frame = "healthFadeAlpha",
-    }
-    local dbKey = alphaMap[elementKey] or "healthFadeAlpha"
+    local dbKey = HEALTH_FADE_ALPHA_MAP[elementKey] or "healthFadeAlpha"
     return db[dbKey] or 0.5
 end
 

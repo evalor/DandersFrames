@@ -339,7 +339,30 @@ function DF:UpdateTestFrameHealthOnly(frame, index)
     
     -- Update health bar
     frame.healthBar:SetValue(health)
-    
+
+    -- Re-evaluate health fade threshold with animated health value
+    if db.healthFadeEnabled then
+        local healthPct = health * 100
+        local threshold = db.healthFadeThreshold or 100
+        local isAbove = (healthPct >= threshold - 0.5)
+        if isAbove and db.hfCancelOnDispel and frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown() then
+            isAbove = false
+        end
+        if isAbove then
+            if db.hfElementSpecific then
+                frame.healthBar:SetAlpha(db.hfHealthBarAlpha or 0.5)
+            elseif not db.oorEnabled then
+                frame:SetAlpha(db.healthFadeAlpha or 0.5)
+            end
+        else
+            if db.hfElementSpecific then
+                frame.healthBar:SetAlpha(1.0)
+            elseif not db.oorEnabled then
+                frame:SetAlpha(1.0)
+            end
+        end
+    end
+
     -- Update missing health bar if enabled
     if frame.missingHealthBar then
         local backgroundMode = db.backgroundMode or "BACKGROUND"
@@ -664,36 +687,36 @@ function DF:UpdateTestFrame(frame, index, applyLayout)
     
     -- Health-based fading (above threshold): only when in range, alive, and option enabled
     local healthPct = (testData.healthPercent or 1) * 100
-    local threshold = db.fullHealthFadeThreshold or 100
+    local threshold = db.healthFadeThreshold or 100
     local isAboveHealthThreshold = not isOutOfRange and not applyDeadFade
-        and db.fullHealthFadeEnabled
+        and db.healthFadeEnabled
         and (healthPct >= threshold - 0.5)
-    if isAboveHealthThreshold and db.fhCancelOnDispel and frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown() then
+    if isAboveHealthThreshold and db.hfCancelOnDispel and frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown() then
         isAboveHealthThreshold = false
     end
     
     if isAboveHealthThreshold then
-        if db.fhElementSpecific then
-            healthBarAlpha = db.fhHealthBarAlpha or 0.5
-            backgroundAlpha = db.fhBackgroundAlpha or 0.5
-            nameAlpha = db.fhNameTextAlpha or 0.5
-            healthTextAlpha = db.fhHealthTextAlpha or 0.5
-            aurasAlpha = db.fhAurasAlpha or 0.5
-            iconsAlpha = db.fhIconsAlpha or 0.5
-            powerBarAlpha = db.fhPowerBarAlpha or 0.5
-            dispelAlpha = db.fhDispelOverlayAlpha or 0.5
-            targetedSpellAlpha = db.fhTargetedSpellAlpha or 0.5
+        if db.hfElementSpecific then
+            healthBarAlpha = db.hfHealthBarAlpha or 0.5
+            backgroundAlpha = db.hfBackgroundAlpha or 0.5
+            nameAlpha = db.hfNameTextAlpha or 0.5
+            healthTextAlpha = db.hfHealthTextAlpha or 0.5
+            aurasAlpha = db.hfAurasAlpha or 0.5
+            iconsAlpha = db.hfIconsAlpha or 0.5
+            powerBarAlpha = db.hfPowerBarAlpha or 0.5
+            dispelAlpha = db.hfDispelOverlayAlpha or 0.5
+            targetedSpellAlpha = db.hfTargetedSpellAlpha or 0.5
         else
-            local fhAlpha = db.fullHealthFadeAlpha or 0.5
-            healthBarAlpha = fhAlpha
-            backgroundAlpha = fhAlpha
-            nameAlpha = fhAlpha
-            healthTextAlpha = fhAlpha
-            aurasAlpha = fhAlpha
-            iconsAlpha = fhAlpha
-            powerBarAlpha = fhAlpha
-            dispelAlpha = fhAlpha
-            targetedSpellAlpha = fhAlpha
+            local hfAlpha = db.healthFadeAlpha or 0.5
+            healthBarAlpha = hfAlpha
+            backgroundAlpha = hfAlpha
+            nameAlpha = hfAlpha
+            healthTextAlpha = hfAlpha
+            aurasAlpha = hfAlpha
+            iconsAlpha = hfAlpha
+            powerBarAlpha = hfAlpha
+            dispelAlpha = hfAlpha
+            targetedSpellAlpha = hfAlpha
         end
         frame.dfTestHealthFadeAlphas = {
             icons = iconsAlpha,
@@ -862,8 +885,8 @@ function DF:UpdateTestFrame(frame, index, applyLayout)
     if not db.oorEnabled then
         if isOutOfRange then
             frame:SetAlpha(db.rangeFadeAlpha or db.rangeAlpha or 0.55)
-        elseif isAboveHealthThreshold and not db.fhElementSpecific then
-            frame:SetAlpha(db.fullHealthFadeAlpha or 0.5)
+        elseif isAboveHealthThreshold and not db.hfElementSpecific then
+            frame:SetAlpha(db.healthFadeAlpha or 0.5)
         else
             frame:SetAlpha(1)
         end

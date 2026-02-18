@@ -615,10 +615,10 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             return not d.healthFadeEnabled or d.hfElementSpecific
         end
 
-        local hfThreshold = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Health Threshold (%)", 50, 100, 1, db, "healthFadeThreshold", nil, function()
+        local hfThreshold = hfGroup:AddWidget(GUI:CreateSlider(self.child, "Health Threshold (%)", 50, 100, 1, db, "healthFadeThreshold", function()
             DF:UpdateAllFrames()
             DF:RefreshAllVisibleFrames()
-        end, false), 55)
+        end), 55)
         hfThreshold.hideOn = HideHFOptions
         hfThreshold.tooltip = "Units at or above this health percent are faded."
 
