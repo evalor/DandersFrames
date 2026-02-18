@@ -1079,9 +1079,36 @@ function CC:SetEnabled(enabled)
     end
     
     if enabled then
+        -- Clear dfClickCastRegistered flags so frames can be re-committed
+        -- to the new ClickCastFrames metatable that SetupClickCastFramesGlobal
+        -- is about to create (the old flags were against the previous table)
+        if DF.partyHeader then
+            for i = 1, 5 do
+                local child = DF.partyHeader:GetAttribute("child" .. i)
+                if child then child.dfClickCastRegistered = nil end
+            end
+        end
+        if DF.raidSeparatedHeaders then
+            for g = 1, 8 do
+                local header = DF.raidSeparatedHeaders[g]
+                if header then
+                    for i = 1, 5 do
+                        local child = header:GetAttribute("child" .. i)
+                        if child then child.dfClickCastRegistered = nil end
+                    end
+                end
+            end
+        end
+        if DF.FlatRaidFrames and DF.FlatRaidFrames.header then
+            for i = 1, 40 do
+                local child = DF.FlatRaidFrames.header:GetAttribute("child" .. i)
+                if child then child.dfClickCastRegistered = nil end
+            end
+        end
+
         -- Set up our metatable on ClickCastFrames (this is skipped on initial load if disabled)
         self:SetupClickCastFramesGlobal()
-        
+
         -- Register all frames in ClickCastFrames that aren't already registered
         if ClickCastFrames then
             for frame, frameEnabled in pairs(ClickCastFrames) do
