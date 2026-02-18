@@ -4372,6 +4372,17 @@ function DF:ToggleGUI()
         
         DF.GUIFrame:Show()
         GUI:RefreshCurrentPage()
+
+        -- Auto-show changelog on first open after update
+        if DandersFramesDB_v2 and DandersFramesDB_v2.lastSeenVersion ~= DF.ADDON_VERSION then
+            DandersFramesDB_v2.lastSeenVersion = DF.ADDON_VERSION
+            if GUI.changelogOverlay and GUI.changelogContent and GUI.changelogScroll then
+                GUI.changelogContent:SetWidth(GUI.changelogScroll:GetWidth())
+                GUI.changelogContent:SetText(GUI.FormatChangelog(DF.CHANGELOG_TEXT))
+                GUI.changelogContent:SetCursorPosition(0)
+                GUI.changelogOverlay:Show()
+            end
+        end
     end
 end
 
@@ -4533,6 +4544,7 @@ function DF:CreateGUI()
     changelogOverlay:SetFrameLevel(300)
     CreatePanelBackdrop(changelogOverlay)
     changelogOverlay:Hide()
+    GUI.changelogOverlay = changelogOverlay
 
     -- Header bar within the overlay
     local changelogHeader = CreateFrame("Frame", nil, changelogOverlay)
@@ -4612,6 +4624,9 @@ function DF:CreateGUI()
     changelogContent:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     changelogContent:SetScript("OnEditFocusGained", function(self) self:HighlightText(0, 0) end)
     changelogScroll:SetScrollChild(changelogContent)
+    GUI.FormatChangelog = FormatChangelog
+    GUI.changelogContent = changelogContent
+    GUI.changelogScroll = changelogScroll
 
     infoBtn:SetScript("OnClick", function()
         if changelogOverlay:IsShown() then
