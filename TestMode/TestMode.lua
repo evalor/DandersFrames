@@ -3435,35 +3435,51 @@ function DF:UpdateTestPowerBar(frame, testData)
     
     -- Position power bar (floating style - anchored to a point, not spanning frame)
     bar:ClearAllPoints()
-    
+
     local orientation = db.resourceBarOrientation or "HORIZONTAL"
     bar:SetOrientation(orientation)
     bar:SetReverseFill(db.resourceBarReverseFill or false)
-    
+
     local isVertical = (orientation == "VERTICAL")
     local length = db.resourceBarWidth or 50
     local thickness = db.resourceBarHeight or 4
-    
+
+    if db.pixelPerfect and DF.PixelPerfect then
+        length = DF:PixelPerfect(length)
+        thickness = DF:PixelPerfect(thickness)
+    end
+
+    -- Compute health bar dimensions from settings (not GetWidth/GetHeight which
+    -- can return stale values before WoW layout processes anchor changes)
+    local padding = db.framePadding or 0
+    local frameWidth = db.frameWidth or 120
+    local frameHeight = db.frameHeight or 50
+    if db.pixelPerfect and DF.PixelPerfect then
+        frameWidth = DF:PixelPerfect(frameWidth)
+        frameHeight = DF:PixelPerfect(frameHeight)
+        padding = DF:PixelPerfect(padding)
+    end
+    local healthBarWidth = frameWidth - (2 * padding)
+    local healthBarHeight = frameHeight - (2 * padding)
+
     if isVertical then
         bar:SetWidth(thickness)
         bar:SetHeight(length)
-        if db.resourceBarMatchWidth and frame.healthBar then
-            local h = frame.healthBar:GetHeight()
-            if h and h > 1 then
-                bar:SetHeight(h)
+        if db.resourceBarMatchWidth then
+            if healthBarHeight > 1 then
+                bar:SetHeight(healthBarHeight)
             end
         end
     else
         bar:SetWidth(length)
         bar:SetHeight(thickness)
-        if db.resourceBarMatchWidth and frame.healthBar then
-            local w = frame.healthBar:GetWidth()
-            if w and w > 1 then
-                bar:SetWidth(w)
+        if db.resourceBarMatchWidth then
+            if healthBarWidth > 1 then
+                bar:SetWidth(healthBarWidth)
             end
         end
     end
-    
+
     local offsetX = db.resourceBarX or 0
     local offsetY = db.resourceBarY or 0
     bar:SetPoint(powerAnchor, frame, powerAnchor, offsetX, offsetY)
