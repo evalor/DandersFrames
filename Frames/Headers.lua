@@ -7949,10 +7949,10 @@ headerChildEventFrame:SetScript("OnEvent", function(self, event, arg1)
             if newLeader ~= oldLeader then
                 unitLeaderCache = newLeader
                 
-                -- Update only the old and new leader frames (not all frames)
+                -- Update only the old and new leader frames, or all if cache was empty
                 local function updateIfLeader(frame)
                     if frame.dfIsHeaderChild and frame.unit then
-                        if frame.unit == oldLeader or frame.unit == newLeader then
+                        if not oldLeader or frame.unit == oldLeader or frame.unit == newLeader then
                             DF:UpdateLeaderIcon(frame)
                         end
                     end
@@ -7961,7 +7961,7 @@ headerChildEventFrame:SetScript("OnEvent", function(self, event, arg1)
                 DF:IterateRaidFrames(updateIfLeader)
                 -- Also update pinned frames showing old/new leader
                 IteratePinnedFrames(function(frame)
-                    if frame.unit == oldLeader or frame.unit == newLeader then
+                    if not oldLeader or frame.unit == oldLeader or frame.unit == newLeader then
                         DF:UpdateLeaderIcon(frame)
                     end
                 end)
