@@ -5391,15 +5391,15 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     CreateCategory("profiles", "Profiles")
     
     -- ========================================
-    -- Profiles > Auto Profiles (Raid only)
+    -- Profiles > Auto Layouts (Raid only)
     -- ========================================
-    local pageAutoProfiles = CreateSubTab("profiles", "profiles_auto", "Auto Profiles")
+    local pageAutoProfiles = CreateSubTab("profiles", "profiles_auto", "Auto Layouts")
     BuildPage(pageAutoProfiles, function(self, db, Add, AddSpace)
         if DF.AutoProfilesUI and DF.AutoProfilesUI.BuildPage then
             DF.AutoProfilesUI:BuildPage(GUI, self, db, Add, AddSpace)
         else
-            Add(GUI:CreateHeader(self.child, "Auto Profiles"), 40, "both")
-            Add(GUI:CreateLabel(self.child, "Auto Profiles module not loaded.", 400), 30, "both")
+            Add(GUI:CreateHeader(self.child, "Auto Layouts"), 40, "both")
+            Add(GUI:CreateLabel(self.child, "Auto Layouts module not loaded.", 400), 30, "both")
         end
     end)
     

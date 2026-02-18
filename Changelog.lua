@@ -7,16 +7,18 @@ DF.CHANGELOG_TEXT = [===[
 
 ## Unreleased (v4.0.7-alpha.4)
 
-- Fix auto profile override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
-- Fix extra row spacing when editing auto profile overrides — slider drags now trigger full test frame layout refresh
-- Fix auto profile edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
-- Fix auto profile override count showing +1 — unmapped keys no longer inflate the badge count
+- Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
+- Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
+- Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
+- Fix auto layout override count showing +1 — unmapped keys no longer inflate the badge count
 - Fix raidTestFrameCount not trackable as a profile override — added to OVERRIDE_TAB_MAP under Frame tab
-- Fix auto profile override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
+- Fix auto layout override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
 - Fix profiles not persisting per character — currentProfile is now stored in per-character saved variables so each character remembers their own profile
 - Fix absorb bar not fading when unit is out of range
 - Fix click-casting spell not learned when queuing as different spec
 - Fix click-casting not working when clicking on aura/defensive icons
+- Auto-show changelog when opening settings for the first time after an update
+- Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 
 ---
 

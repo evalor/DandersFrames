@@ -442,16 +442,16 @@ function AutoProfilesUI:BuildPage(GUI, pageFrame, db, Add, AddSpace)
     
     -- Only show for Raid mode
     if GUI.SelectedMode ~= "raid" then
-        Add(GUI:CreateHeader(pageFrame.child, "Raid Auto Profiles"), 40, "both")
+        Add(GUI:CreateHeader(pageFrame.child, "Raid Auto Layouts"), 40, "both")
         Add(GUI:CreateLabel(pageFrame.child,
-            "Auto Profiles is a Raid-only feature. Switch to Raid mode to configure automatic profile switching based on content type and group size.",
+            "Auto Layouts is a Raid-only feature. Switch to Raid mode to configure automatic layout switching based on content type and group size.",
             500, {r = 0.6, g = 0.6, b = 0.6}), 60, "both")
         return
     end
 
     -- Gate auto-profiles behind alpha/beta channel — show "Coming Soon" on stable
     if DF.RELEASE_CHANNEL == "release" then
-        Add(GUI:CreateHeader(pageFrame.child, "Auto Profiles"), 40, "both")
+        Add(GUI:CreateHeader(pageFrame.child, "Auto Layouts"), 40, "both")
         AddSpace(20, "both")
 
         local comingSoon = CreateFrame("Frame", nil, pageFrame.child, "BackdropTemplate")
@@ -1042,7 +1042,7 @@ function AutoProfilesUI:CreateProfileRow(GUI, pageFrame, parent, contentType, pr
         editBtn:SetScript("OnEnter", function(btn)
             GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
             GameTooltip:SetText("Cannot Edit", 1, 0.3, 0.3)
-            GameTooltip:AddLine("Only the active layout can be edited\nwhile auto profiles are running.", 0.7, 0.7, 0.7, true)
+            GameTooltip:AddLine("Only the active layout can be edited\nwhile auto layouts are running.", 0.7, 0.7, 0.7, true)
             GameTooltip:Show()
         end)
         editBtn:SetScript("OnLeave", function()
