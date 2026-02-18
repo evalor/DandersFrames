@@ -2792,9 +2792,10 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             DF:UpdateAllPowerEventRegistration()
             DF:UpdateAllFrames() 
         end), 30)
-        settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Healer Only", db, "resourceBarHealerOnly", function() DF:UpdateAllFrames() end), 30)
+        settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Healers", db, "resourceBarShowHealer", function() DF:UpdateAllFrames() end), 30)
+        settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Tanks", db, "resourceBarShowTank", function() DF:UpdateAllFrames() end), 30)
+        settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "DPS", db, "resourceBarShowDPS", function() DF:UpdateAllFrames() end), 30)
         local showInSolo = settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Show in Solo Mode", db, "resourceBarShowInSoloMode", function() DF:UpdateAllFrames() end), 30)
-        showInSolo.disableOn = function(d) return not d.resourceBarHealerOnly end
         showInSolo.hideOn = function() return GUI.SelectedMode == "raid" end
         settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, "Smooth Bar Animation", db, "resourceBarSmooth", function() DF:UpdateAllFrames() end), 30)
         Add(settingsGroup, nil, 1)

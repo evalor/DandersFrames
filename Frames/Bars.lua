@@ -21,6 +21,36 @@ local pcall = pcall
 -- RESOURCE BAR LOGIC
 -- ============================================================
 
+-- Centralized role-filter check for resource bar visibility
+-- Returns true if the resource bar should be shown for this unit
+function DF:ShouldShowResourceBar(unit, db)
+    if not db.resourceBarEnabled then return false end
+
+    local hasAnyRoleFilter = db.resourceBarShowHealer or db.resourceBarShowTank or db.resourceBarShowDPS
+
+    if hasAnyRoleFilter then
+        local role = UnitGroupRolesAssigned(unit)
+        local inSoloMode = not IsInGroup() and not IsInRaid()
+
+        if inSoloMode and db.resourceBarShowInSoloMode then
+            return true
+        elseif role == "HEALER" then
+            return db.resourceBarShowHealer == true
+        elseif role == "TANK" then
+            return db.resourceBarShowTank == true
+        elseif role == "DAMAGER" then
+            return db.resourceBarShowDPS == true
+        else
+            -- "NONE" role (no role assigned)
+            return false
+        end
+    else
+        -- All three toggles off: hide for everyone except solo override
+        local inSoloMode = not IsInGroup() and not IsInRaid()
+        return inSoloMode and db.resourceBarShowInSoloMode == true
+    end
+end
+
 function DF:ApplyResourceBarLayout(frame)
     if not frame then return end
     
@@ -38,31 +68,20 @@ function DF:ApplyResourceBarLayout(frame)
         return
     end
     
-    -- Need unit for healer check
+    -- Need unit for role check
     if not frame.unit then
         bar:Hide()
         return
     end
-    
-    local unit = frame.unit
-    
-    -- Check healer-only mode
-    local showBar = true
-    if db.resourceBarHealerOnly then
-        local role = UnitGroupRolesAssigned(unit)
-        local inSoloMode = not IsInGroup() and not IsInRaid()
-        
-        -- Show bar if: we're a healer, OR we're in solo mode with the solo option enabled
-        if role ~= "HEALER" then
-            if inSoloMode and db.resourceBarShowInSoloMode then
-                showBar = true
-            else
-                showBar = false
-            end
-        end
+
+    -- Check role-based filtering
+    if not DF:ShouldShowResourceBar(frame.unit, db) then
+        bar:Hide()
+        return
     end
-    
-    if showBar then
+
+    -- Bar is visible - apply layout
+    do
         bar:Show()
         bar:ClearAllPoints()
         
@@ -139,8 +158,6 @@ function DF:ApplyResourceBarLayout(frame)
                 bar.border:Hide()
             end
         end
-    else
-        bar:Hide()
     end
 end
 

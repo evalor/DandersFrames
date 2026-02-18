@@ -102,64 +102,10 @@ function DF:ApplyFrameLayout(frame)
     
     -- ========================================
     -- RESOURCE/POWER BAR LAYOUT
+    -- Delegated to ApplyResourceBarLayout which handles show/hide,
+    -- role filtering, layout, background, border, and frame level
     -- ========================================
-    local powerBar = frame.dfPowerBar
-    local resourceEnabled = db.resourceBarEnabled
-    local powerHeight = db.resourceBarHeight or 4
-    local powerAnchor = db.resourceBarAnchor or "BOTTOM"
-    
-    if powerBar and resourceEnabled then
-        powerBar:ClearAllPoints()
-        
-        -- Orientation & Fill Direction
-        local orientation = db.resourceBarOrientation or "HORIZONTAL"
-        powerBar:SetOrientation(orientation)
-        powerBar:SetReverseFill(db.resourceBarReverseFill or false)
-        
-        local isVertical = (orientation == "VERTICAL")
-        local length = db.resourceBarWidth or 50
-        local thickness = db.resourceBarHeight or powerHeight
-        
-        -- Apply pixel-perfect adjustments
-        local ppLength = db.pixelPerfect and DF:PixelPerfect(length) or length
-        local ppThickness = db.pixelPerfect and DF:PixelPerfect(thickness) or thickness
-        
-        if isVertical then
-            powerBar:SetWidth(ppThickness)
-            powerBar:SetHeight(ppLength)
-            if db.resourceBarMatchWidth and healthBar then
-                local h = healthBar:GetHeight()
-                if h and h > 1 then
-                    powerBar:SetHeight(h)  -- Already pixel-perfect from frame sizing
-                end
-            end
-        else
-            powerBar:SetWidth(ppLength)
-            powerBar:SetHeight(ppThickness)
-            if db.resourceBarMatchWidth and healthBar then
-                local w = healthBar:GetWidth()
-                if w and w > 1 then
-                    powerBar:SetWidth(w)  -- Already pixel-perfect from frame sizing
-                end
-            end
-        end
-        
-        powerBar:SetPoint(powerAnchor, frame, powerAnchor, db.resourceBarX or 0, db.resourceBarY or 0)
-        
-        -- Background visibility and color
-        if powerBar.bg then
-            if db.resourceBarBackgroundEnabled ~= false then  -- Default to enabled
-                powerBar.bg:Show()
-                local bgC = db.resourceBarBackgroundColor or {r = 0.1, g = 0.1, b = 0.1, a = 0.8}
-                powerBar.bg:SetColorTexture(bgC.r, bgC.g, bgC.b, bgC.a or 0.8)
-            else
-                powerBar.bg:Hide()
-            end
-        end
-    end
-    
-    -- Adjust health bar size based on power bar visibility
-    -- This is handled per-frame in UpdateUnitFrame based on actual visibility
+    DF:ApplyResourceBarLayout(frame)
     
     -- ========================================
     -- ABSORB BAR LAYOUT
@@ -878,25 +824,8 @@ function DF:UpdateUnitFrame(frame, source)
     -- ========================================
     -- POWER BAR
     -- ========================================
-    local showPower = db.resourceBarEnabled
-    local powerHeight = db.resourceBarHeight or 4
-    local powerAnchor = db.resourceBarAnchor or "BOTTOM"
-    
-    -- Check healer-only mode
-    if showPower and db.resourceBarHealerOnly then
-        local role = UnitGroupRolesAssigned(unit)
-        local inSoloMode = not IsInGroup() and not IsInRaid()
-        
-        -- Show bar if: we're a healer, OR we're in solo mode with the solo option enabled
-        if role ~= "HEALER" then
-            if inSoloMode and db.resourceBarShowInSoloMode then
-                showPower = true
-            else
-                showPower = false
-            end
-        end
-    end
-    
+    local showPower = DF:ShouldShowResourceBar(unit, db)
+
     -- Health bar positioning (resource bar is floating, doesn't affect health bar size)
     if frame.healthBar then
         local padding = db.framePadding or 0
@@ -1188,24 +1117,9 @@ function DF:UpdatePower(frame)
     local unit = frame.unit
     local db = DF:GetFrameDB(frame)
     
-    -- Check if power bar should be shown
-    local showPower = db.resourceBarEnabled
-    
-    -- Check healer-only mode
-    if showPower and db.resourceBarHealerOnly then
-        local role = UnitGroupRolesAssigned(unit)
-        local inSoloMode = not IsInGroup() and not IsInRaid()
-        
-        -- Show bar if: we're a healer, OR we're in solo mode with the solo option enabled
-        if role ~= "HEALER" then
-            if inSoloMode and db.resourceBarShowInSoloMode then
-                showPower = true
-            else
-                showPower = false
-            end
-        end
-    end
-    
+    -- Check if power bar should be shown (uses centralized role filter)
+    local showPower = DF:ShouldShowResourceBar(unit, db)
+
     if not showPower then
         frame.dfPowerBar:Hide()
         return

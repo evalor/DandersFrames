@@ -3406,14 +3406,21 @@ function DF:UpdateTestPowerBar(frame, testData)
         return
     end
     
-    -- Check healer-only mode
+    -- Check role-based filtering
     local showBar = true
-    if db.resourceBarHealerOnly then
-        if testData.role ~= "HEALER" then
-            showBar = false
+    local hasAnyRoleFilter = db.resourceBarShowHealer or db.resourceBarShowTank or db.resourceBarShowDPS
+    if hasAnyRoleFilter then
+        if testData.role == "HEALER" then
+            showBar = db.resourceBarShowHealer == true
+        elseif testData.role == "TANK" then
+            showBar = db.resourceBarShowTank == true
+        else
+            showBar = db.resourceBarShowDPS == true
         end
+    else
+        showBar = false
     end
-    
+
     if not showBar then
         if frame.dfPowerBar then frame.dfPowerBar:Hide() end
         return

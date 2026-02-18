@@ -3342,6 +3342,36 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             end
         end
         
+        -- Migrate resourceBarHealerOnly to per-role settings (v4.1.x)
+        -- Old format: resourceBarHealerOnly = true/false
+        -- New format: resourceBarShowHealer, resourceBarShowTank, resourceBarShowDPS
+        local function MigrateResourceBarRoleFilter(modeDb)
+            if modeDb and modeDb.resourceBarHealerOnly ~= nil then
+                if modeDb.resourceBarHealerOnly then
+                    modeDb.resourceBarShowHealer = true
+                    modeDb.resourceBarShowTank = false
+                    modeDb.resourceBarShowDPS = false
+                else
+                    modeDb.resourceBarShowHealer = true
+                    modeDb.resourceBarShowTank = true
+                    modeDb.resourceBarShowDPS = true
+                end
+                modeDb.resourceBarHealerOnly = nil
+            end
+        end
+
+        -- Migrate current profile
+        MigrateResourceBarRoleFilter(DF.db.party)
+        MigrateResourceBarRoleFilter(DF.db.raid)
+
+        -- Migrate all profiles
+        if DandersFramesDB_v2 and DandersFramesDB_v2.profiles then
+            for profileName, profile in pairs(DandersFramesDB_v2.profiles) do
+                MigrateResourceBarRoleFilter(profile.party)
+                MigrateResourceBarRoleFilter(profile.raid)
+            end
+        end
+
         -- Initialize Debug Console (must happen after SavedVariables are ready)
         if DF.DebugConsole then
             DF.DebugConsole:Init()
@@ -4195,7 +4225,34 @@ function DF:FullProfileRefresh()
     -- Get both databases
     local partyDB = DF.db and DF.db.party or DF:GetDB()
     local raidDB = DF.db and DF.db.raid or DF:GetRaidDB()
-    
+
+    -- === MIGRATE IMPORTED/SWITCHED PROFILE SETTINGS ===
+    -- Handle old resourceBarHealerOnly for imported profiles
+    if partyDB and partyDB.resourceBarHealerOnly ~= nil then
+        if partyDB.resourceBarHealerOnly then
+            partyDB.resourceBarShowHealer = true
+            partyDB.resourceBarShowTank = false
+            partyDB.resourceBarShowDPS = false
+        else
+            partyDB.resourceBarShowHealer = true
+            partyDB.resourceBarShowTank = true
+            partyDB.resourceBarShowDPS = true
+        end
+        partyDB.resourceBarHealerOnly = nil
+    end
+    if raidDB and raidDB.resourceBarHealerOnly ~= nil then
+        if raidDB.resourceBarHealerOnly then
+            raidDB.resourceBarShowHealer = true
+            raidDB.resourceBarShowTank = false
+            raidDB.resourceBarShowDPS = false
+        else
+            raidDB.resourceBarShowHealer = true
+            raidDB.resourceBarShowTank = true
+            raidDB.resourceBarShowDPS = true
+        end
+        raidDB.resourceBarHealerOnly = nil
+    end
+
     -- === CLEAR CACHES ===
     -- Invalidate aura layout (settings may have changed)
     DF:InvalidateAuraLayout()
