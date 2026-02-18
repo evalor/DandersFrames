@@ -1051,6 +1051,18 @@ function DF:UpdateTestFrame(frame, index, applyLayout)
         end
     end
     
+    -- Update class power pips for test mode
+    if db.classPowerEnabled and db.testShowClassPower ~= false then
+        if DF.UpdateTestClassPower then
+            testData.index = index
+            DF:UpdateTestClassPower(frame, testData)
+        end
+    else
+        if DF.HideTestClassPower then
+            DF:HideTestClassPower(frame)
+        end
+    end
+
     -- Update selection and aggro highlights for test mode
     -- UpdateHighlights now handles test mode internally
     if DF.UpdateHighlights then
@@ -3858,9 +3870,12 @@ function DF:HideTestFrames(silent)
             if DF.HideAllTargetedSpells then
                 DF:HideAllTargetedSpells(frame)
             end
+            if DF.HideTestClassPower then
+                DF:HideTestClassPower(frame)
+            end
         end
     end
-    
+
     -- Hide test container
     if DF.testPartyContainer then
         DF.testPartyContainer:Hide()
@@ -4070,9 +4085,12 @@ function DF:HideRaidTestFrames()
             if DF.HideAllTargetedSpells then
                 DF:HideAllTargetedSpells(frame)
             end
+            if DF.HideTestClassPower then
+                DF:HideTestClassPower(frame)
+            end
         end
     end
-    
+
     -- Hide test container
     if DF.testRaidContainer then
         DF.testRaidContainer:Hide()
@@ -6036,9 +6054,13 @@ function DF:CreateTestPanel()
     end, "auras_bossdebuffs")
     y = y - checkHeight
     
-    -- Row 9: Class Power (player frame only - party test mode)
-    panel.showClassPowerCheck = CreateCheckbox(panel, y, col1X, "Class Power", "testShowClassPower", function()
-        if DF.RefreshClassPower then DF.RefreshClassPower() end
+    -- Row 9: Class Power (all relevant class frames)
+    panel.showClassPowerCheck = CreateCheckbox(panel, y, col1X, "Class Power", "testShowClassPower", function(enabled)
+        if enabled then
+            if DF.UpdateAllTestClassPower then DF:UpdateAllTestClassPower() end
+        else
+            if DF.CleanupTestClassPower then DF:CleanupTestClassPower() end
+        end
     end, "bars_classpower")
     y = y - checkHeight + 2  -- Slightly reduced gap before sliders
     

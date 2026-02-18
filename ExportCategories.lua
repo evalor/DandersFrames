@@ -157,7 +157,13 @@ DF.ExportCategories = {
         "classPowerX",
         "classPowerY",
         "classPowerIgnoreFade",
-        
+        "classPowerUseCustomColor",
+        "classPowerColor",
+        "classPowerBgColor",
+        "classPowerShowTank",
+        "classPowerShowHealer",
+        "classPowerShowDamager",
+
         -- Absorb Bar
         "absorbBarMode",
         "absorbBarAnchor",

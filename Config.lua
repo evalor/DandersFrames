@@ -1463,6 +1463,12 @@ DF.PartyDefaults = {
     classPowerX = 0,
     classPowerY = -1,
     classPowerIgnoreFade = true,
+    classPowerUseCustomColor = false,
+    classPowerColor = {r = 1, g = 0.82, b = 0, a = 1},
+    classPowerBgColor = {r = 0.15, g = 0.15, b = 0.15, a = 0.4},
+    classPowerShowTank = true,
+    classPowerShowHealer = true,
+    classPowerShowDamager = true,
 
     -- Rested Indicator
     restedIndicator = false,
@@ -2552,6 +2558,12 @@ DF.RaidDefaults = {
     classPowerX = 0,
     classPowerY = -1,
     classPowerIgnoreFade = true,
+    classPowerUseCustomColor = false,
+    classPowerColor = {r = 1, g = 0.82, b = 0, a = 1},
+    classPowerBgColor = {r = 0.15, g = 0.15, b = 0.15, a = 0.4},
+    classPowerShowTank = true,
+    classPowerShowHealer = true,
+    classPowerShowDamager = true,
 
     -- Rested Indicator
     restedIndicator = false,

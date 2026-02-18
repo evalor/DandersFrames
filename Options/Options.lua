@@ -2957,22 +2957,69 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             if DF.UpdateClassPowerAlpha then DF.UpdateClassPowerAlpha() end
         end), 25, 1)
         cpIgnoreFade.hideOn = HideClassPower
-        
+
+        AddSpace(10, 1)
+        Add(GUI:CreateHeader(self.child, "Colors"), 40, 1)
+
+        local cpUseCustomColor = Add(GUI:CreateCheckbox(self.child, "Use Custom Pip Color", db, "classPowerUseCustomColor", function()
+            self:RefreshStates()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end), 25, 1)
+        cpUseCustomColor.hideOn = HideClassPower
+        cpUseCustomColor.tooltip = "When enabled, all pips use a single custom color instead of the class-specific default."
+
+        local cpColor = Add(GUI:CreateColorPicker(self.child, "Pip Color", db, "classPowerColor", false, function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end, function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end, true), 35, 1)
+        cpColor.hideOn = HideClassPower
+        cpColor.disableOn = function(d) return not d.classPowerUseCustomColor end
+
+        local cpBgColor = Add(GUI:CreateColorPicker(self.child, "Background Color", db, "classPowerBgColor", true, function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end, function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end, true), 35, 1)
+        cpBgColor.hideOn = HideClassPower
+        cpBgColor.tooltip = "Color and opacity of the empty/inactive pips."
+
         Add(GUI:CreateHeader(self.child, "Position"), 40, 2)
         local anchorOptions = {
             INSIDE_BOTTOM = "Inside (Bottom)",
             INSIDE_TOP = "Inside (Top)",
             BOTTOM = "Below Health Bar",
             TOP = "Above Health Bar",
+            LEFT = "Left of Health Bar",
+            RIGHT = "Right of Health Bar",
         }
         local cpAnchor = Add(GUI:CreateDropdown(self.child, "Anchor", anchorOptions, db, "classPowerAnchor", function() if DF.RefreshClassPower then DF.RefreshClassPower() end end), 55, 2)
         cpAnchor.hideOn = HideClassPower
-        
+        cpAnchor.tooltip = "Horizontal anchors lay pips left-to-right. Left/Right anchors stack pips vertically along the frame side."
+
         local cpX = Add(GUI:CreateSlider(self.child, "Offset X", -30, 30, 1, db, "classPowerX", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 2)
         cpX.hideOn = HideClassPower
-        
+
         local cpY = Add(GUI:CreateSlider(self.child, "Offset Y", -20, 20, 1, db, "classPowerY", nil, function() if DF.RefreshClassPower then DF.RefreshClassPower() end end, true), 55, 2)
         cpY.hideOn = HideClassPower
+
+        AddSpace(10, 2)
+        Add(GUI:CreateHeader(self.child, "Show for Roles"), 40, 2)
+
+        local cpShowTank = Add(GUI:CreateCheckbox(self.child, "Tank", db, "classPowerShowTank", function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end), 25, 2)
+        cpShowTank.hideOn = HideClassPower
+
+        local cpShowHealer = Add(GUI:CreateCheckbox(self.child, "Healer", db, "classPowerShowHealer", function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end), 25, 2)
+        cpShowHealer.hideOn = HideClassPower
+
+        local cpShowDamager = Add(GUI:CreateCheckbox(self.child, "Damage", db, "classPowerShowDamager", function()
+            if DF.RefreshClassPower then DF.RefreshClassPower() end
+        end), 25, 2)
+        cpShowDamager.hideOn = HideClassPower
     end)
     
     -- Bars > Absorbs (combined Absorb Shield + Heal Absorb with collapsible sections)

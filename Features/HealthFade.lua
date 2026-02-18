@@ -11,8 +11,6 @@ local addonName, DF = ...
 
 -- Upvalue all frequently used globals for performance
 local UnitExists = UnitExists
-local UnitHealth = UnitHealth
-local UnitHealthMax = UnitHealthMax
 local issecretvalue = issecretvalue or function() return false end
 
 -- Invalidate curve cache when options change (called from Options.lua)
@@ -85,12 +83,9 @@ end
 
 local function GetPetHealthPercent(unit)
     if not unit or not UnitExists(unit) then return 0 end
-    local cur = UnitHealth(unit, true)
-    local max = UnitHealthMax(unit, true)
-    if not cur or not max then return 0 end
-    if issecretvalue(cur) or issecretvalue(max) then return 0 end
-    if max == 0 then return 0 end
-    return (cur / max) * 100
+    local pct = DF.GetSafeHealthPercent and DF.GetSafeHealthPercent(unit) or 0
+    if issecretvalue(pct) then return 0 end
+    return pct
 end
 
 function DF:UpdatePetHealthFade(frame)
