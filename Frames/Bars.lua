@@ -84,41 +84,50 @@ function DF:ApplyResourceBarLayout(frame)
     do
         bar:Show()
         bar:ClearAllPoints()
-        
+
         -- Orientation & Fill Direction
         bar:SetOrientation(db.resourceBarOrientation or "HORIZONTAL")
         bar:SetReverseFill(db.resourceBarReverseFill)
-        
+
         local isVertical = (db.resourceBarOrientation == "VERTICAL")
         local length = db.resourceBarWidth or 50
         local thickness = db.resourceBarHeight or 4
-        
+
         -- Apply pixel-perfect adjustments
         local ppLength = db.pixelPerfect and DF:PixelPerfect(length) or length
         local ppThickness = db.pixelPerfect and DF:PixelPerfect(thickness) or thickness
-        
+
+        -- Compute health bar dimensions from settings instead of GetWidth/GetHeight
+        -- which can return stale values before WoW's layout engine processes anchor changes
+        local padding = db.framePadding or 0
+        local frameWidth = db.frameWidth or 120
+        local frameHeight = db.frameHeight or 50
+        if db.pixelPerfect and DF.PixelPerfect then
+            frameWidth = DF:PixelPerfect(frameWidth)
+            frameHeight = DF:PixelPerfect(frameHeight)
+            padding = DF:PixelPerfect(padding)
+        end
+        local healthBarWidth = frameWidth - (2 * padding)
+        local healthBarHeight = frameHeight - (2 * padding)
+
         if isVertical then
             -- SWAP: "Width" Value applies to Height (Length), "Height" value applies to Width (Thickness)
             bar:SetWidth(ppThickness)
             bar:SetHeight(ppLength)
-            
+
             if db.resourceBarMatchWidth then
-                -- MATCH HEIGHT LOGIC (Overrides Length)
-                local h = frame.healthBar:GetHeight()
-                if h and h > 1 then
-                    bar:SetHeight(h)  -- Already pixel-perfect from frame sizing
+                if healthBarHeight > 1 then
+                    bar:SetHeight(healthBarHeight)
                 end
             end
         else
             -- NORMAL: "Width" Value applies to Width, "Height" value applies to Height
             bar:SetWidth(ppLength)
             bar:SetHeight(ppThickness)
-            
+
             if db.resourceBarMatchWidth then
-                -- MATCH WIDTH LOGIC (Overrides Length)
-                local w = frame.healthBar:GetWidth()
-                if w and w > 1 then
-                    bar:SetWidth(w)  -- Already pixel-perfect from frame sizing
+                if healthBarWidth > 1 then
+                    bar:SetWidth(healthBarWidth)
                 end
             end
         end

@@ -3759,31 +3759,10 @@ function DF:ApplyTestFrameLayout(frame)
         DF:ApplyAuraLayout(frame, "DEBUFF")
     end
     
-    -- Apply power bar layout
-    if frame.dfPowerBar and db.resourceBarEnabled then
-        local powerHeight = db.resourceBarHeight or 4
-        local powerAnchor = db.resourceBarAnchor or "BOTTOM"
-        local orientation = db.resourceBarOrientation or "HORIZONTAL"
-        
-        frame.dfPowerBar:SetOrientation(orientation)
-        frame.dfPowerBar:SetReverseFill(db.resourceBarReverseFill or false)
-        
-        local isVertical = (orientation == "VERTICAL")
-        local length = db.resourceBarWidth or 50
-        local thickness = db.resourceBarHeight or powerHeight
-        
-        if db.pixelPerfect then
-            length = DF:PixelPerfect(length)
-            thickness = DF:PixelPerfect(thickness)
-        end
-        
-        if isVertical then
-            frame.dfPowerBar:SetWidth(thickness)
-            frame.dfPowerBar:SetHeight(length)
-        else
-            frame.dfPowerBar:SetWidth(length)
-            frame.dfPowerBar:SetHeight(thickness)
-        end
+    -- Apply power bar layout (delegate to shared function which handles
+    -- match-width, role filtering, background, border, frame level, etc.)
+    if DF.ApplyResourceBarLayout then
+        DF:ApplyResourceBarLayout(frame)
     end
 end
 

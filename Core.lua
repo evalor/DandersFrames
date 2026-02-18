@@ -195,8 +195,12 @@ function DF:LightweightUpdateFrameSize()
                 frame.healthBar:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, -padding)
                 frame.healthBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -padding, padding)
             end
+            -- Update resource bar width to match new frame size
+            if db.resourceBarMatchWidth and frame.dfPowerBar and DF.ApplyResourceBarLayout then
+                DF:ApplyResourceBarLayout(frame)
+            end
         end
-        
+
         IterateFramesInMode(mode, UpdateFrame)
 
         -- Re-apply header settings so the container and header anchors
