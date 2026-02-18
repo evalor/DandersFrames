@@ -396,9 +396,11 @@ function DF:UnregisterIconFromAuraTimer(icon)
 end
 
 -- Cache of auras that Blizzard's raid frames decided to show
--- Key: unitToken (e.g., "party1"), Value: { 
---   buffs = {auraInstanceID = true}, 
---   debuffs = {auraInstanceID = true},
+-- Key: unitToken (e.g., "party1"), Value: {
+--   buffs = {auraInstanceID = true},          -- Set for fast lookups
+--   debuffs = {auraInstanceID = true},        -- Set for fast lookups
+--   buffOrder = {auraInstanceID, ...},        -- Ordered array matching Blizzard's display order
+--   debuffOrder = {auraInstanceID, ...},      -- Ordered array matching Blizzard's display order
 --   playerDispellable = {auraInstanceID = true},  -- Only debuffs the current player can dispel
 --   defensives = {auraInstanceID = true}  -- Defensive auras from CenterDefensiveBuff
 -- }
@@ -451,31 +453,36 @@ local function CaptureAurasFromBlizzardFrame(frame, triggerUpdate)
     
     -- Initialize cache for this unit
     if not DF.BlizzardAuraCache[unit] then
-        DF.BlizzardAuraCache[unit] = { buffs = {}, debuffs = {}, playerDispellable = {}, defensives = {} }
+        DF.BlizzardAuraCache[unit] = { buffs = {}, debuffs = {}, buffOrder = {}, debuffOrder = {}, playerDispellable = {}, defensives = {} }
     end
-    
+
     -- Clear previous cache for this unit (wipe instead of new table to reduce GC)
     local cache = DF.BlizzardAuraCache[unit]
     wipe(cache.buffs)
     wipe(cache.debuffs)
+    wipe(cache.buffOrder)
+    wipe(cache.debuffOrder)
     wipe(cache.playerDispellable)
     wipe(cache.defensives)
     
     -- Capture buff auraInstanceIDs from Blizzard's buff frames
-    -- Use type check to ensure buffFrames is actually a table before iterating
+    -- ipairs preserves Blizzard's sorted display order (buffOrder array)
+    -- Set (buffs) kept for fast lookups elsewhere in the codebase
     if frame.buffFrames and type(frame.buffFrames) == "table" then
         for i, buffFrame in ipairs(frame.buffFrames) do
             if buffFrame and buffFrame.IsShown and buffFrame:IsShown() and buffFrame.auraInstanceID then
                 cache.buffs[buffFrame.auraInstanceID] = true
+                cache.buffOrder[#cache.buffOrder + 1] = buffFrame.auraInstanceID
             end
         end
     end
-    
+
     -- Capture debuff auraInstanceIDs from Blizzard's debuff frames
     if frame.debuffFrames and type(frame.debuffFrames) == "table" then
         for i, debuffFrame in ipairs(frame.debuffFrames) do
             if debuffFrame and debuffFrame.IsShown and debuffFrame:IsShown() and debuffFrame.auraInstanceID then
                 cache.debuffs[debuffFrame.auraInstanceID] = true
+                cache.debuffOrder[#cache.debuffOrder + 1] = debuffFrame.auraInstanceID
             end
         end
     end
@@ -486,8 +493,12 @@ local function CaptureAurasFromBlizzardFrame(frame, triggerUpdate)
         for i, debuffFrame in ipairs(frame.dispelDebuffFrames) do
             if debuffFrame and debuffFrame.IsShown and debuffFrame:IsShown() and debuffFrame.auraInstanceID then
                 -- Add to both debuffs (for general display) and playerDispellable (for filtering)
-                DF.BlizzardAuraCache[unit].debuffs[debuffFrame.auraInstanceID] = true
-                DF.BlizzardAuraCache[unit].playerDispellable[debuffFrame.auraInstanceID] = true
+                -- Only append to debuffOrder if not already captured from debuffFrames
+                if not cache.debuffs[debuffFrame.auraInstanceID] then
+                    cache.debuffs[debuffFrame.auraInstanceID] = true
+                    cache.debuffOrder[#cache.debuffOrder + 1] = debuffFrame.auraInstanceID
+                end
+                cache.playerDispellable[debuffFrame.auraInstanceID] = true
             end
         end
     end
@@ -1288,195 +1299,198 @@ function DF:UpdateAuraIconsDirect(frame, icons, auraType, maxAuras)
     local durationY = db[prefix .. "DurationY"] or 0
     local durationAnchor = db[prefix .. "DurationAnchor"] or "CENTER"
     
-    -- Slot-ordered iteration: walk Blizzard's aura slots 1→40 to preserve native order
-    -- We only read auraInstanceID (a plain integer, not secret) for cache lookup
+    -- Iterate in Blizzard's display order (captured from buffFrames/debuffFrames)
+    -- This matches how Blizzard sorts auras on their default CompactUnitFrames
     local displayedCount = 0
+    local orderList = cache and (auraType == "BUFF" and cache.buffOrder or cache.debuffOrder)
+
+    if orderList then
+        for i = 1, #orderList do
+            if displayedCount >= maxAuras then break end
+
+            local auraInstanceID = orderList[i]
+
+            -- Fetch aura data by instance ID (secret-safe: we only use the ID for lookup)
+            local auraData = GetAuraDataByAuraInstanceID and GetAuraDataByAuraInstanceID(unit, auraInstanceID)
+            if auraData then
+                -- Guard: ensure we have an icon slot available
+                local nextIcon = icons[displayedCount + 1]
+                if not nextIcon then break end
+
+                -- Set texture (validates the aura is displayable)
+                local auraIconTexture = auraData.icon
+                local canDisplay = false
+                if auraIconTexture then
+                    canDisplay = SafeSetTexture(nextIcon, auraIconTexture)
+                end
+
+                -- Check raid buff filtering
+                local skipAura = false
+                if canDisplay and shouldFilterRaidBuffs and raidBuffIcons and auraIconTexture then
+                    if not issecretvalue(auraIconTexture) and raidBuffIcons[auraIconTexture] then
+                        skipAura = true
+                    end
+                end
+
+                if canDisplay and not skipAura then
+                    displayedCount = displayedCount + 1
+                    local icon = icons[displayedCount]
+                    -- Note: texture already set by SafeSetTexture above
+
+                    -- Store aura tracking data (reuse existing table)
+                    if not icon.auraData then
+                        icon.auraData = { index = 0, auraInstanceID = nil }
+                    end
+                    icon.auraData.index = i
+                    icon.auraData.auraInstanceID = auraInstanceID
+
+                    -- Set cooldown
+                    SafeSetCooldown(icon.cooldown, auraData.expirationTime, auraData.duration)
+
+                    -- Stack count
+                    icon.count:SetText("")
+                    local stackMinimum = icon.stackMinimum or 2
+                    if C_UnitAuras.GetAuraApplicationDisplayCount then
+                        local stackText = C_UnitAuras.GetAuraApplicationDisplayCount(unit, auraInstanceID, stackMinimum, 99)
+                        if stackText then
+                            icon.count:SetText(stackText)
+                        end
+                    end
+
+                    -- Expiration data
+                    icon.expirationTime = nil
+                    icon.auraDuration = nil
+                    icon.hasExpiration = false
+
+                    if C_UnitAuras.DoesAuraHaveExpirationTime then
+                        icon.hasExpiration = C_UnitAuras.DoesAuraHaveExpirationTime(unit, auraInstanceID)
+                        icon.expirationTime = auraData.expirationTime
+                        icon.auraDuration = auraData.duration
+                    else
+                        -- Fallback for pre-11.1 (no secret values to worry about)
+                        if auraData.expirationTime and auraData.expirationTime > 0 then
+                            icon.expirationTime = auraData.expirationTime
+                            icon.hasExpiration = true
+                        end
+                        if auraData.duration and auraData.duration > 0 then
+                            icon.auraDuration = auraData.duration
+                        end
+                    end
+
+                    -- Cooldown swipe visibility
+                    if icon.cooldown then
+                        if icon.cooldown.SetShownFromBoolean then
+                            icon.cooldown:SetShownFromBoolean(icon.hasExpiration, true, false)
+                        else
+                            icon.cooldown:Show()
+                        end
+                    end
+
+                    -- Duration text visibility
+                    if icon.duration then
+                        if icon.showDuration then
+                            if icon.duration.SetShownFromBoolean then
+                                icon.duration:SetShownFromBoolean(icon.hasExpiration, true, false)
+                            else
+                                icon.duration:Show()
+                            end
+                        else
+                            icon.duration:Hide()
+                        end
+                    end
+
+                    -- Border color (normal, not expiring)
+                    if borderEnabled and not masqueBorderControl then
+                        if auraType == "DEBUFF" and not unitDeadOrOffline then
+                            if db.debuffBorderColorByType ~= false and C_UnitAuras.GetAuraDispelTypeColor and C_CurveUtil and C_CurveUtil.CreateColorCurve then
+                                if not DF.debuffBorderCurve then
+                                    local curve = C_CurveUtil.CreateColorCurve()
+                                    curve:SetType(Enum.LuaCurveType.Step)
+
+                                    local noneColor = db.debuffBorderColorNone or {r = 0.8, g = 0.0, b = 0.0}
+                                    local magicColor = db.debuffBorderColorMagic or {r = 0.2, g = 0.6, b = 1.0}
+                                    local curseColor = db.debuffBorderColorCurse or {r = 0.6, g = 0.0, b = 1.0}
+                                    local diseaseColor = db.debuffBorderColorDisease or {r = 0.6, g = 0.4, b = 0.0}
+                                    local poisonColor = db.debuffBorderColorPoison or {r = 0.0, g = 0.6, b = 0.0}
+                                    local bleedColor = db.debuffBorderColorBleed or {r = 1.0, g = 0.0, b = 0.0}
+
+                                    curve:AddPoint(0, CreateColor(noneColor.r, noneColor.g, noneColor.b, 0.8))
+                                    curve:AddPoint(1, CreateColor(magicColor.r, magicColor.g, magicColor.b, 0.8))
+                                    curve:AddPoint(2, CreateColor(curseColor.r, curseColor.g, curseColor.b, 0.8))
+                                    curve:AddPoint(3, CreateColor(diseaseColor.r, diseaseColor.g, diseaseColor.b, 0.8))
+                                    curve:AddPoint(4, CreateColor(poisonColor.r, poisonColor.g, poisonColor.b, 0.8))
+                                    curve:AddPoint(9, CreateColor(bleedColor.r, bleedColor.g, bleedColor.b, 0.8))
+                                    curve:AddPoint(11, CreateColor(bleedColor.r, bleedColor.g, bleedColor.b, 0.8))
+
+                                    DF.debuffBorderCurve = curve
+                                end
+
+                                local borderColor = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, DF.debuffBorderCurve)
+                                if borderColor then
+                                    local r, g, b, a = 0.8, 0, 0, 0.8
+                                    if borderColor.GetRGBA then
+                                        r, g, b, a = borderColor:GetRGBA()
+                                    elseif borderColor.r then
+                                        r, g, b, a = borderColor.r, borderColor.g, borderColor.b, borderColor.a or 0.8
+                                    end
+                                    icon.border:SetColorTexture(r, g, b, a)
+                                else
+                                    local c = db.debuffBorderColorNone or {r = 0.8, g = 0, b = 0}
+                                    icon.border:SetColorTexture(c.r, c.g, c.b, 0.8)
+                                end
+                            else
+                                icon.border:SetColorTexture(0.8, 0, 0, 0.8)
+                            end
+                        else
+                            icon.border:SetColorTexture(0, 0, 0, 0.8)
+                        end
+                        icon.border:Show()
+                    elseif not masqueBorderControl then
+                        icon.border:Hide()
+                    end
+
+                    -- Find native cooldown text (first time only, cached on icon)
+                    if not icon.nativeCooldownText and icon.cooldown then
+                        local regions = {icon.cooldown:GetRegions()}
+                        for _, region in ipairs(regions) do
+                            if region and region.GetObjectType and region:GetObjectType() == "FontString" then
+                                icon.nativeCooldownText = region
+                                icon.nativeTextReparented = false
+
+                                -- Immediately apply font settings to prevent large default font flash
+                                if DF.SafeSetFont then
+                                    DF:SafeSetFont(region, durationFont, durationSize, durationOutline)
+                                end
+                                region:ClearAllPoints()
+                                region:SetPoint(durationAnchor, icon, durationAnchor, durationX, durationY)
+
+                                break
+                            end
+                        end
+                    end
+
+                    icon:Show()
+
+                    -- Register for shared timer updates
+                    DF:RegisterIconForAuraTimer(icon)
+                end
+            end
+        end
+    end
+
+    -- Legacy: slot-ordered iteration (walks aura slots 1-40, which is application order, not Blizzard's display order)
+    -- Kept for reference in case we want a slot-based option in the future
+    --[[
     local auraFilter = auraType == "BUFF" and "HELPFUL" or "HARMFUL"
     local slot = 1
-
     while displayedCount < maxAuras and slot <= 40 do
         local auraData = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex(unit, slot, auraFilter)
         if not auraData then break end
-
         local auraInstanceID = auraData.auraInstanceID
         if auraInstanceID and cacheSet[auraInstanceID] then
-            -- Guard: ensure we have an icon slot available
-            local nextIcon = icons[displayedCount + 1]
-            if not nextIcon then break end
-
-            -- Set texture (validates the aura is displayable)
-            local auraIconTexture = auraData.icon
-            local canDisplay = false
-            if auraIconTexture then
-                canDisplay = SafeSetTexture(nextIcon, auraIconTexture)
-            end
-
-            -- Check raid buff filtering
-            local skipAura = false
-            if canDisplay and shouldFilterRaidBuffs and raidBuffIcons and auraIconTexture then
-                if not issecretvalue(auraIconTexture) and raidBuffIcons[auraIconTexture] then
-                    skipAura = true
-                end
-            end
-
-            if canDisplay and not skipAura then
-                displayedCount = displayedCount + 1
-                local icon = icons[displayedCount]
-                -- Note: texture already set by SafeSetTexture above
-
-                -- Store aura tracking data (reuse existing table)
-                if not icon.auraData then
-                    icon.auraData = { index = 0, auraInstanceID = nil }
-                end
-                icon.auraData.index = slot
-                icon.auraData.auraInstanceID = auraInstanceID
-
-                -- Set cooldown
-                SafeSetCooldown(icon.cooldown, auraData.expirationTime, auraData.duration)
-
-                -- Stack count
-                icon.count:SetText("")
-                local stackMinimum = icon.stackMinimum or 2
-                if C_UnitAuras.GetAuraApplicationDisplayCount then
-                    local stackText = C_UnitAuras.GetAuraApplicationDisplayCount(unit, auraInstanceID, stackMinimum, 99)
-                    if stackText then
-                        icon.count:SetText(stackText)
-                    end
-                end
-
-                -- Expiration data
-                icon.expirationTime = nil
-                icon.auraDuration = nil
-                icon.hasExpiration = false
-
-                if C_UnitAuras.DoesAuraHaveExpirationTime then
-                    icon.hasExpiration = C_UnitAuras.DoesAuraHaveExpirationTime(unit, auraInstanceID)
-                    icon.expirationTime = auraData.expirationTime
-                    icon.auraDuration = auraData.duration
-                else
-                    -- Fallback for pre-11.1 (no secret values to worry about)
-                    if auraData.expirationTime and auraData.expirationTime > 0 then
-                        icon.expirationTime = auraData.expirationTime
-                        icon.hasExpiration = true
-                    end
-                    if auraData.duration and auraData.duration > 0 then
-                        icon.auraDuration = auraData.duration
-                    end
-                end
-
-                -- Cooldown swipe visibility
-                if icon.cooldown then
-                    if icon.cooldown.SetShownFromBoolean then
-                        icon.cooldown:SetShownFromBoolean(icon.hasExpiration, true, false)
-                    else
-                        icon.cooldown:Show()
-                    end
-                end
-
-                -- Duration text visibility
-                if icon.duration then
-                    if icon.showDuration then
-                        if icon.duration.SetShownFromBoolean then
-                            icon.duration:SetShownFromBoolean(icon.hasExpiration, true, false)
-                        else
-                            icon.duration:Show()
-                        end
-                    else
-                        icon.duration:Hide()
-                    end
-                end
-
-                -- Border color (normal, not expiring)
-                if borderEnabled and not masqueBorderControl then
-                    if auraType == "DEBUFF" and not unitDeadOrOffline then
-                        if db.debuffBorderColorByType ~= false and C_UnitAuras.GetAuraDispelTypeColor and C_CurveUtil and C_CurveUtil.CreateColorCurve then
-                            if not DF.debuffBorderCurve then
-                                local curve = C_CurveUtil.CreateColorCurve()
-                                curve:SetType(Enum.LuaCurveType.Step)
-
-                                local noneColor = db.debuffBorderColorNone or {r = 0.8, g = 0.0, b = 0.0}
-                                local magicColor = db.debuffBorderColorMagic or {r = 0.2, g = 0.6, b = 1.0}
-                                local curseColor = db.debuffBorderColorCurse or {r = 0.6, g = 0.0, b = 1.0}
-                                local diseaseColor = db.debuffBorderColorDisease or {r = 0.6, g = 0.4, b = 0.0}
-                                local poisonColor = db.debuffBorderColorPoison or {r = 0.0, g = 0.6, b = 0.0}
-                                local bleedColor = db.debuffBorderColorBleed or {r = 1.0, g = 0.0, b = 0.0}
-
-                                curve:AddPoint(0, CreateColor(noneColor.r, noneColor.g, noneColor.b, 0.8))
-                                curve:AddPoint(1, CreateColor(magicColor.r, magicColor.g, magicColor.b, 0.8))
-                                curve:AddPoint(2, CreateColor(curseColor.r, curseColor.g, curseColor.b, 0.8))
-                                curve:AddPoint(3, CreateColor(diseaseColor.r, diseaseColor.g, diseaseColor.b, 0.8))
-                                curve:AddPoint(4, CreateColor(poisonColor.r, poisonColor.g, poisonColor.b, 0.8))
-                                curve:AddPoint(9, CreateColor(bleedColor.r, bleedColor.g, bleedColor.b, 0.8))
-                                curve:AddPoint(11, CreateColor(bleedColor.r, bleedColor.g, bleedColor.b, 0.8))
-
-                                DF.debuffBorderCurve = curve
-                            end
-
-                            local borderColor = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, DF.debuffBorderCurve)
-                            if borderColor then
-                                local r, g, b, a = 0.8, 0, 0, 0.8
-                                if borderColor.GetRGBA then
-                                    r, g, b, a = borderColor:GetRGBA()
-                                elseif borderColor.r then
-                                    r, g, b, a = borderColor.r, borderColor.g, borderColor.b, borderColor.a or 0.8
-                                end
-                                icon.border:SetColorTexture(r, g, b, a)
-                            else
-                                local c = db.debuffBorderColorNone or {r = 0.8, g = 0, b = 0}
-                                icon.border:SetColorTexture(c.r, c.g, c.b, 0.8)
-                            end
-                        else
-                            icon.border:SetColorTexture(0.8, 0, 0, 0.8)
-                        end
-                    else
-                        icon.border:SetColorTexture(0, 0, 0, 0.8)
-                    end
-                    icon.border:Show()
-                elseif not masqueBorderControl then
-                    icon.border:Hide()
-                end
-
-                -- Find native cooldown text (first time only, cached on icon)
-                if not icon.nativeCooldownText and icon.cooldown then
-                    local regions = {icon.cooldown:GetRegions()}
-                    for _, region in ipairs(regions) do
-                        if region and region.GetObjectType and region:GetObjectType() == "FontString" then
-                            icon.nativeCooldownText = region
-                            icon.nativeTextReparented = false
-
-                            -- Immediately apply font settings to prevent large default font flash
-                            if DF.SafeSetFont then
-                                DF:SafeSetFont(region, durationFont, durationSize, durationOutline)
-                            end
-                            region:ClearAllPoints()
-                            region:SetPoint(durationAnchor, icon, durationAnchor, durationX, durationY)
-
-                            break
-                        end
-                    end
-                end
-
-                icon:Show()
-
-                -- Register for shared timer updates
-                DF:RegisterIconForAuraTimer(icon)
-            end
+            -- ... display logic ...
         end
-
         slot = slot + 1
-    end
-
-    -- Legacy: non-deterministic pairs() iteration over cache set
-    -- Kept for reference in case we want an unordered/ID-based option in the future
-    --[[
-    for auraInstanceID in pairs(cacheSet) do
-        if displayedCount >= maxAuras then break end
-        local nextIcon = icons[displayedCount + 1]
-        if not nextIcon then break end
-        local auraData = GetAuraDataByAuraInstanceID and GetAuraDataByAuraInstanceID(unit, auraInstanceID)
-        if auraData then
-            -- ... same display logic as above ...
-        end
     end
     --]]
     
