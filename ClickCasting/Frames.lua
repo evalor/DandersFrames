@@ -1187,27 +1187,34 @@ end
 -- Register a unit frame for click-casting
 function CC:RegisterFrame(frame)
     if not frame then return end
-    
+
     -- Don't do anything if our click casting is disabled
     -- This allows Clique/Clicked to fully control the frame
     if not self.db or not self.db.enabled then
+        DF:Debug("CLICK", "RegisterFrame: skipping (disabled) frame=%s", tostring(frame:GetName() or frame))
         return
     end
-    
+
     -- Ensure registeredFrames table exists (may be called before full init)
     if not self.registeredFrames then
         self.registeredFrames = {}
     end
-    
-    if self.registeredFrames[frame] then return end
-    
+
+    if self.registeredFrames[frame] then
+        DF:Debug("CLICK", "RegisterFrame: already registered frame=%s", tostring(frame:GetName() or frame))
+        return
+    end
+
     -- Don't register during combat OR if secure frames aren't initialized yet
     if InCombatLockdown() or not self.secureFramesInitialized then
         -- Queue for later
+        DF:Debug("CLICK", "RegisterFrame: queued (combat=%s secureInit=%s) frame=%s", tostring(InCombatLockdown()), tostring(self.secureFramesInitialized), tostring(frame:GetName() or frame))
         self.pendingRegistrations = self.pendingRegistrations or {}
         self.pendingRegistrations[frame] = true
         return
     end
+
+    DF:Debug("CLICK", "RegisterFrame: registering frame=%s", tostring(frame:GetName() or frame))
     
     -- Store original click bindings if not already stored
     if not frame.dfOriginalClickBindings then

@@ -442,9 +442,11 @@ function CC:ApplyBindings()
     -- Pass 1 (immediate): Non-pinned frames (~50-90 frames)
     -- Pass 2 (deferred):  Pinned frames (~80 frames), batched after a short delay
     if self.registeredFrames then
+        local applyCount = 0
         local deferredFrames = {}
-        
+
         for frame in pairs(self.registeredFrames) do
+            applyCount = applyCount + 1
             if frame.isPinnedFrame then
                 deferredFrames[#deferredFrames + 1] = frame
             else
@@ -452,6 +454,8 @@ function CC:ApplyBindings()
             end
         end
         
+        DF:Debug("CLICK", "ApplyBindings: applied to %d frames (%d deferred/pinned)", applyCount, #deferredFrames)
+
         -- Defer pinned frames if any exist
         if #deferredFrames > 0 then
             local BATCH_SIZE = 10
@@ -1110,15 +1114,52 @@ function CC:SetEnabled(enabled)
         self:SetupClickCastFramesGlobal()
 
         -- Register all frames in ClickCastFrames that aren't already registered
+        local ccfCount = 0
         if ClickCastFrames then
             for frame, frameEnabled in pairs(ClickCastFrames) do
                 if frameEnabled and type(frame) == "table" then
+                    ccfCount = ccfCount + 1
                     self:RegisterFrame(frame)
                 end
             end
         end
+        DF:Debug("CLICK", "SetEnabled: ClickCastFrames had %d frames", ccfCount)
+
+        local regCount = 0
         self:RegisterAllFrames()
+        if self.registeredFrames then
+            for _ in pairs(self.registeredFrames) do regCount = regCount + 1 end
+        end
+        DF:Debug("CLICK", "SetEnabled: registeredFrames has %d frames after RegisterAllFrames", regCount)
+
+        -- Debug: check party header children state
+        if DF.partyHeader then
+            for i = 1, 5 do
+                local child = DF.partyHeader:GetAttribute("child" .. i)
+                if child then
+                    local name = child:GetName() or "unnamed"
+                    local t1 = child:GetAttribute("type1") or "nil"
+                    local s1 = tostring(child:GetAttribute("spell1") or "nil"):sub(1, 30)
+                    local kbSetup = child.dfKeyboardHandlersSetup and "yes" or "no"
+                    local inReg = (self.registeredFrames and self.registeredFrames[child]) and "yes" or "no"
+                    DF:Debug("CLICK", "  child%d: %s type1=%s spell1=%s kbSetup=%s registered=%s", i, name, t1, s1, kbSetup, inReg)
+                end
+            end
+        end
+
         self:ApplyBindings()
+
+        -- Debug: verify bindings were applied
+        if DF.partyHeader then
+            local child1 = DF.partyHeader:GetAttribute("child1")
+            if child1 then
+                local t1 = child1:GetAttribute("type1") or "nil"
+                local s1 = tostring(child1:GetAttribute("spell1") or "nil"):sub(1, 30)
+                local kbSetup = child1.dfKeyboardHandlersSetup and "yes" or "no"
+                DF:Debug("CLICK", "Post-ApplyBindings child1: type1=%s spell1=%s kbSetup=%s secureInit=%s", t1, s1, kbSetup, tostring(self.secureFramesInitialized))
+            end
+        end
+
         -- Disable Blizzard's click casting to prevent conflicts
         self:DisableBlizzardClickCasting()
     else
