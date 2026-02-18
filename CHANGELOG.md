@@ -26,6 +26,7 @@
 * Fix absorb bar not fading when unit is out of range — health event updates were overwriting the OOR alpha on every tick
 
 ### New Features
+* Add "Sync with Raid/Party" toggle per settings page — keeps party and raid settings in sync automatically when enabled, with per-profile persistence (contributed by Enf0)
 * Auto-show changelog when opening settings for the first time after an update
 * Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
