@@ -27,6 +27,8 @@
 
 ### New Features
 * Add "Sync with Raid/Party" toggle per settings page — keeps party and raid settings in sync automatically when enabled, with per-profile persistence (contributed by Enf0)
+* Add health fade system — fades frames or individual elements when a unit's health is above a configurable threshold, with per-element alpha controls, dispel cancel override, and test mode support (contributed by X-Steeve)
+* Add class power pips — displays class-specific resources (Holy Power, Chi, Combo Points, Soul Shards, Arcane Charges, Essence) on the player's party/raid frame as colored pips with configurable size, position, and anchor
 * Auto-show changelog when opening settings for the first time after an update
 * Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
