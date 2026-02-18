@@ -948,24 +948,41 @@ end
 -- ============================================================
 -- CLICK-CAST REGISTRATION HELPERS
 -- Centralised registration for Clique / Clicked / other click-cast addons.
--- The dfClickCastRegistered guard ensures each frame is only registered once,
--- preventing the duplicate registration that caused Clique's WrapScript to
--- scramble OnEnter/OnLeave on first login.
+--
+-- There are two phases:
+--   1. EARLY (frame creation at ADDON_LOADED) — just mark the frame as
+--      needing click-cast registration. We do NOT write to ClickCastFrames
+--      yet because Clique's __newindex metatable may not be installed.
+--      Writing to a plain table means __newindex never fires for that key,
+--      even after Clique later replaces the table with a metatable.
+--
+--   2. LATE (PLAYER_ENTERING_WORLD+0.5s via RegisterClickCastFrames /
+--      RegisterRaidClickCastFrames) — now Clique's metatable is in place,
+--      so we write ClickCastFrames[frame] = true and Clique picks it up.
+--      The dfClickCastRegistered flag prevents writing more than once.
 -- ============================================================
 
+-- Register a frame for click-casting (Clique, Clicked, etc.)
+--
+-- Before PLAYER_ENTERING_WORLD, just marks the frame — we don't write to
+-- ClickCastFrames yet because Clique's __newindex metatable may not be
+-- installed. Writing to a plain table means __newindex never fires for
+-- that key, even after Clique later replaces the table with a metatable.
+--
+-- After PLAYER_ENTERING_WORLD (clickCastReady = true), writes directly
+-- to ClickCastFrames so Clique's metatable picks up the registration.
+-- The dfClickCastRegistered flag prevents writing more than once.
 function DF:RegisterFrameWithClickCast(frame)
     if not frame then return end
-    -- Guard: only register once — this is the key fix for the Clique bug.
-    -- Without this, frames get registered multiple times (at creation and again
-    -- at PLAYER_ENTERING_WORLD+0.5s), triggering Clique's __newindex each time
-    -- and causing it to re-wrap OnEnter/OnLeave, scrambling the script chain.
     if frame.dfClickCastRegistered then return end
 
-    if ClickCastFrames then
+    if DF.clickCastReady and ClickCastFrames then
         ClickCastFrames[frame] = true
+        frame.dfClickCastRegistered = true
+    else
+        -- Mark for deferred registration
+        frame.dfNeedsClickCast = true
     end
-
-    frame.dfClickCastRegistered = true
 end
 
 function DF:UnregisterFrameWithClickCast(frame)
@@ -974,24 +991,46 @@ function DF:UnregisterFrameWithClickCast(frame)
         ClickCastFrames[frame] = false
     end
     frame.dfClickCastRegistered = nil
+    frame.dfNeedsClickCast = nil
 end
 
-function DF:RegisterRaidClickCastFrames()
+-- Commit all deferred registrations. Called once at PLAYER_ENTERING_WORLD
+-- after Clique's metatable is in place.
+function DF:CommitAllClickCastRegistrations()
+    DF.clickCastReady = true
+
+    -- Party frames
+    if DF.IteratePartyFrames then
+        DF:IteratePartyFrames(function(frame)
+            if frame and frame.dfNeedsClickCast and not frame.dfClickCastRegistered then
+                if ClickCastFrames then
+                    ClickCastFrames[frame] = true
+                end
+                frame.dfClickCastRegistered = true
+                frame.dfNeedsClickCast = nil
+            end
+        end)
+    end
+
+    -- Raid frames
     for _, frame in pairs(DF:GetAllRaidFrames()) do
-        if frame then
-            DF:RegisterFrameWithClickCast(frame)
+        if frame and frame.dfNeedsClickCast and not frame.dfClickCastRegistered then
+            if ClickCastFrames then
+                ClickCastFrames[frame] = true
+            end
+            frame.dfClickCastRegistered = true
+            frame.dfNeedsClickCast = nil
         end
     end
 end
 
+-- Legacy functions — now just call CommitAllClickCastRegistrations
+function DF:RegisterRaidClickCastFrames()
+    DF:CommitAllClickCastRegistrations()
+end
+
 function DF:RegisterClickCastFrames()
-    if DF.IteratePartyFrames then
-        DF:IteratePartyFrames(function(frame)
-            if frame then
-                DF:RegisterFrameWithClickCast(frame)
-            end
-        end)
-    end
+    DF:CommitAllClickCastRegistrations()
 end
 
 -- ============================================================
