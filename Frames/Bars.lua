@@ -158,6 +158,26 @@ function DF:ApplyResourceBarLayout(frame)
                 bar.border:Hide()
             end
         end
+
+        -- Set power value and color immediately so the bar doesn't appear white
+        local unit = frame.unit
+        if unit and UnitExists(unit) then
+            local power = UnitPower(unit)
+            local maxPower = UnitPowerMax(unit)
+            if type(power) == "number" and type(maxPower) == "number" and maxPower > 0 then
+                bar:SetMinMaxValues(0, maxPower)
+                bar:SetValue(power)
+                local pType, pToken, altR, altG, altB = UnitPowerType(unit)
+                local info = DF:GetPowerColor(pToken, pType)
+                if info then
+                    bar:SetStatusBarColor(info.r, info.g, info.b, 1)
+                elseif altR then
+                    bar:SetStatusBarColor(altR, altG, altB, 1)
+                else
+                    bar:SetStatusBarColor(0, 0, 1, 1)
+                end
+            end
+        end
     end
 end
 
