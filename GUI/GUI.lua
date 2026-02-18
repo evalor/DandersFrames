@@ -16,6 +16,8 @@ local C_HOVER      = {r = 0.22, g = 0.22, b = 0.22, a = 1}
 local C_TEXT       = {r = 0.9, g = 0.9, b = 0.9, a = 1}
 local C_TEXT_DIM   = {r = 0.6, g = 0.6, b = 0.6, a = 1}
 
+DF.SectionRegistry = DF.SectionRegistry or {}
+
 -- Track selected mode
 GUI.SelectedMode = "party"
 
@@ -4372,6 +4374,17 @@ function DF:ToggleGUI()
         
         DF.GUIFrame:Show()
         GUI:RefreshCurrentPage()
+
+        -- Auto-show changelog on first open after update
+        if DandersFramesDB_v2 and DandersFramesDB_v2.lastSeenVersion ~= DF.ADDON_VERSION then
+            DandersFramesDB_v2.lastSeenVersion = DF.ADDON_VERSION
+            if GUI.changelogOverlay and GUI.changelogContent and GUI.changelogScroll then
+                GUI.changelogContent:SetWidth(GUI.changelogScroll:GetWidth())
+                GUI.changelogContent:SetText(GUI.FormatChangelog(DF.CHANGELOG_TEXT))
+                GUI.changelogContent:SetCursorPosition(0)
+                GUI.changelogOverlay:Show()
+            end
+        end
     end
 end
 
@@ -4533,6 +4546,7 @@ function DF:CreateGUI()
     changelogOverlay:SetFrameLevel(300)
     CreatePanelBackdrop(changelogOverlay)
     changelogOverlay:Hide()
+    GUI.changelogOverlay = changelogOverlay
 
     -- Header bar within the overlay
     local changelogHeader = CreateFrame("Frame", nil, changelogOverlay)
@@ -4612,6 +4626,9 @@ function DF:CreateGUI()
     changelogContent:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     changelogContent:SetScript("OnEditFocusGained", function(self) self:HighlightText(0, 0) end)
     changelogScroll:SetScrollChild(changelogContent)
+    GUI.FormatChangelog = FormatChangelog
+    GUI.changelogContent = changelogContent
+    GUI.changelogScroll = changelogScroll
 
     infoBtn:SetScript("OnClick", function()
         if changelogOverlay:IsShown() then
@@ -5031,6 +5048,8 @@ function DF:CreateGUI()
     end)
     
     btnParty:SetScript("OnClick", function()
+        DF:SyncLinkedSections()
+
         -- Before switching tabs, clean up current mode's test mode and unlock state
         if GUI.SelectedMode == "raid" then
             -- Lock raid frames if unlocked
@@ -5059,6 +5078,8 @@ function DF:CreateGUI()
         GUI:RefreshCurrentPage()
     end)
     btnRaid:SetScript("OnClick", function()
+        DF:SyncLinkedSections()
+
         -- Before switching tabs, clean up current mode's test mode and unlock state
         if GUI.SelectedMode == "party" then
             -- Lock party frames if unlocked

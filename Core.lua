@@ -168,9 +168,9 @@ function DF:LightweightUpdateFrameSize()
     if mode == "raid" then
         -- Check for raid test mode
         if DF.raidTestMode then
-            -- Update test frames
-            if DF.UpdateRaidTestFrames then
-                DF:UpdateRaidTestFrames()
+            -- Full layout refresh including borders, health bars, fonts etc.
+            if DF.RefreshTestFramesWithLayout then
+                DF:RefreshTestFramesWithLayout()
             end
         else
             -- Call real layout function for live frames
@@ -233,8 +233,9 @@ function DF:LightweightUpdateFrameSpacing()
     if mode == "raid" then
         -- Check for raid test mode
         if DF.raidTestMode then
-            if DF.UpdateRaidTestFrames then
-                DF:UpdateRaidTestFrames()
+            -- Full layout refresh including borders, health bars, fonts etc.
+            if DF.RefreshTestFramesWithLayout then
+                DF:RefreshTestFramesWithLayout()
             end
         else
             if DF.UpdateRaidLayout then
@@ -1349,6 +1350,20 @@ function DF:LightweightUpdateAuraDurationText(auraType)
     end
     
     IterateFramesInMode(mode, UpdateDuration)
+end
+
+-- Sync linked sections between party and raid modes
+function DF:SyncLinkedSections()
+    if not DF.GUI or not DF.db or not DF.db.linkedSections then return end
+    if not next(DF.db.linkedSections) then return end
+    local mode = DF.GUI.SelectedMode
+    if mode ~= "party" and mode ~= "raid" then return end
+
+    for pageId, prefixes in pairs(DF.SectionRegistry or {}) do
+        if DF.db.linkedSections[pageId] then
+            DF:CopySectionSettingsRaw(prefixes, mode)
+        end
+    end
 end
 
 -- Update aura border settings (both regular and expiring borders)
@@ -3040,11 +3055,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             }
         end
         
-        -- Initialize per-character saved variables for spec auto-switch
+        -- Initialize per-character saved variables
         if not DandersFramesCharDB then
             DandersFramesCharDB = {
                 enableSpecSwitch = false,
                 specProfiles = {},
+                currentProfile = nil,  -- seeded from account-wide on first login
             }
         end
         
@@ -3060,7 +3076,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         
         -- Ensure structure exists in per-character DB
         if DandersFramesCharDB.specProfiles == nil then DandersFramesCharDB.specProfiles = {} end
-        
+
+        -- Seed per-character profile from account-wide on first login for this character
+        if not DandersFramesCharDB.currentProfile then
+            DandersFramesCharDB.currentProfile = DandersFramesDB_v2.currentProfile
+        end
+
         -- Migrate from old format (profile.party/raid) to new format (profiles)
         if DandersFramesDB_v2.profile and not DandersFramesDB_v2.profiles then
             DandersFramesDB_v2.profiles = {
@@ -3073,6 +3094,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Ensure structure exists
         if not DandersFramesDB_v2.profiles then DandersFramesDB_v2.profiles = {} end
         if not DandersFramesDB_v2.currentProfile then DandersFramesDB_v2.currentProfile = "Default" end
+
+        -- Track last seen version for auto-showing changelog on update
+        if not DandersFramesDB_v2.lastSeenVersion then
+            DandersFramesDB_v2.lastSeenVersion = DF.ADDON_VERSION
+        end
         if not DandersFramesDB_v2.profiles["Default"] then
             DandersFramesDB_v2.profiles["Default"] = {
                 party = DF:DeepCopy(DF.PartyDefaults),
@@ -3080,16 +3106,19 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 raidAutoProfiles = DF:DeepCopy(DF.RaidAutoProfilesDefaults),
                 classColors = {},
                 powerColors = {},
+                linkedSections = {},
             }
         end
         
-        -- Set current profile
-        local currentProfile = DandersFramesDB_v2.currentProfile
+        -- Set current profile (per-character takes priority over account-wide)
+        local currentProfile = DandersFramesCharDB.currentProfile or DandersFramesDB_v2.currentProfile
         if not DandersFramesDB_v2.profiles[currentProfile] then
             currentProfile = "Default"
-            DandersFramesDB_v2.currentProfile = "Default"
         end
-        
+        -- Keep both in sync
+        DandersFramesCharDB.currentProfile = currentProfile
+        DandersFramesDB_v2.currentProfile = currentProfile
+
         DF.db = DandersFramesDB_v2.profiles[currentProfile]
         
         -- Ensure both modes exist in current profile
@@ -3109,6 +3138,11 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         -- Ensure powerColors table exists (shared across party/raid)
         if not DF.db.powerColors then
             DF.db.powerColors = {}
+        end
+
+        -- Ensure linkedSections table exists (shared across party/raid)
+        if not DF.db.linkedSections then
+            DF.db.linkedSections = {}
         end
         
         -- Migrate any missing settings from defaults
@@ -4075,6 +4109,8 @@ function DF:UpdateAll()
         return
     end
     
+    DF:SyncLinkedSections()
+
     -- Invalidate aura layout so all frames re-apply layout on next aura update
     DF:InvalidateAuraLayout()
     

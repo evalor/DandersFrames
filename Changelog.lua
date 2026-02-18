@@ -1,9 +1,56 @@
 local addonName, DF = ...
-DF.ADDON_VERSION = "dev"
-DF.BUILD_DATE = "0000-00-00T00:00:00Z"
+DF.ADDON_VERSION = "v4.0.7-alpha.4"
+DF.BUILD_DATE = "2026-02-18T12:00:00Z"
 DF.RELEASE_CHANNEL = "alpha"
 DF.CHANGELOG_TEXT = [===[
 # DandersFrames Changelog
+
+## Unreleased (v4.0.7-alpha.4)
+
+- Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
+- Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
+- Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
+- Fix auto layout override count showing +1 — unmapped keys no longer inflate the badge count
+- Fix raidTestFrameCount not trackable as a profile override — added to OVERRIDE_TAB_MAP under Frame tab
+- Fix auto layout override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
+- Fix profiles not persisting per character — currentProfile is now stored in per-character saved variables so each character remembers their own profile
+- Fix absorb bar not fading when unit is out of range
+- Fix click-casting spell not learned when queuing as different spec
+- Fix click-casting not working when clicking on aura/defensive icons
+- Auto-show changelog when opening settings for the first time after an update
+- Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
+
+---
+
+
+## [4.0.7] - 2026-02-16
+
+### Bug Fixes
+* Fix pet frames vanishing after reload — pet frame updates were skipped in header mode, so they were never shown after login or `/rl`
+* Fix pet frame font crash on non-English clients
+* Reduce redundant pet frame updates during startup (throttled from 6 calls to 1-2)
+* Fix resource bar border not showing after login/reload — was calling non-existent function
+* Fix heal absorb bar showing smaller than actual absorb amount — calculator was subtracting incoming heals from absorb value
+* Replace pcall wrappers with nil checks in absorb/heal calculator hot paths for better performance
+* Fix profile direction switch not applying — switching to a profile with a different grow direction now correctly reconfigures header orientation
+* Fix name text truncation not applied to offline players — offline frames showed full names ignoring the truncation setting
+* Fix summon icon permanently stuck on frames after M+ start or group leave — summon icons now refresh on roster and zone changes
+* Fix icon alpha settings (role, leader, raid target, ready check) reverting to 100% after releasing the slider — appearance system was ignoring user-set alpha values
+* Fix click-casting not working when clicking on aura/defensive icons — mouse click events were not propagating to the parent unit button
+* Fix click-casting "Spell not learned" when queuing as different spec — macros now resolve the current spec's spell override instead of using the stored root spell name
+* Fix absorb bar not fading when unit is out of range — health event updates were overwriting the OOR alpha on every tick
+
+### New Features
+* Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
+
+## [4.0.6] - 2026-02-15
+
+### Bug Fixes
+* `/df resetgui` command now works — was referencing wrong frame variable, also shows the GUI after resetting
+* Settings UI can now be dragged from the bottom banner in addition to the title bar
+* Fix party frame mover (blue rectangle) showing wrong size after switching between profiles with different orientations or frame dimensions
+* Fix Wago UI pack imports overwriting previous profiles — importing multiple profiles sequentially no longer corrupts the first imported profile
+* Fix error when duplicating a profile
 
 ## [4.0.5] - 2026-02-14
 

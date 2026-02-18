@@ -19,7 +19,11 @@ Desktop.ini
 # Claude Code (local dev only)
 CLAUDE.md
 .claude/
+.mcp.json
 
 # Reference material (contents ignored, folder kept via .gitkeep)
 _Reference/*
 !_Reference/.gitkeep
+
+# Automation (local agent scripts, MCP server, logs)
+_Automation/

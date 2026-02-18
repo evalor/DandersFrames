@@ -57,7 +57,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
 
-          NOTES=$(awk '/^## / { count++; if (count > 1) exit } count >= 1 { print }' CHANGELOG.md | head -c 1800 | sed -e :a -e '/^[[:space:]-]*$/{ $d; N; ba; }')
+          NOTES=$(awk '/^## / { count++; if (count > 1) exit } count >= 1 { print }' CHANGELOG.md | sed -e :a -e '/^[[:space:]-]*$/{ $d; N; ba; }')
           {
             echo "notes<<NOTES_EOF"
             echo "$NOTES"
@@ -94,29 +94,79 @@ jobs:
             exit 0
           fi
 
+          CHANNEL_UPPER=$(echo "$CHANNEL" | sed 's/.*/\u&/')
+
           case "$CHANNEL" in
             beta)  EMOJI="🧪"; LABEL="Beta ${VERSION} Available for Testing!" ;;
             *)     EMOJI="🧪"; LABEL="Alpha ${VERSION} Available for Testing!" ;;
           esac
 
-          # Build changelog body from NOTES (strip the ## header line, keep the rest)
           BODY=$(echo "$NOTES" | sed '1{/^## /d}' | sed '/^[[:space:]]*$/d')
 
-          MESSAGE="### ${EMOJI} ${LABEL}
-          **Download:** [CurseForge](<https://www.curseforge.com/wow/addons/danders-frames>) *(select \"$(echo "$CHANNEL" | sed 's/.*/\u&/')\" from the dropdown)* • [GitHub Releases](<https://github.com/DanderBot/DandersFrames/releases>)
-          **Support Development:** [PayPal](<https://paypal.me/dandersframesaddon>)
-          ${BODY}
-          *$(echo "$CHANNEL" | sed 's/.*/\u&/') builds are available on CurseForge by selecting \"$(echo "$CHANNEL" | sed 's/.*/\u&/')\" in the file dropdown, or from [GitHub Releases](<https://github.com/DanderBot/DandersFrames/releases>).*"
+          HEADER="### ${EMOJI} ${LABEL}
+          **Download:** [CurseForge](<https://www.curseforge.com/wow/addons/danders-frames>) *(select \"${CHANNEL_UPPER}\" from the dropdown)* • [GitHub Releases](<https://github.com/DanderBot/DandersFrames/releases>)
+          **Support Development:** [PayPal](<https://paypal.me/dandersframesaddon>)"
+          HEADER=$(echo "$HEADER" | sed 's/^          //')
 
-          # Remove leading whitespace from heredoc-style indentation
-          MESSAGE=$(echo "$MESSAGE" | sed 's/^          //')
+          FOOTER="*${CHANNEL_UPPER} builds are available on CurseForge by selecting \"${CHANNEL_UPPER}\" in the file dropdown, or from [GitHub Releases](<https://github.com/DanderBot/DandersFrames/releases>).*"
 
-          PAYLOAD=$(jq -n --arg content "$MESSAGE" '{ content: $content }')
+          # Split body into chunks that fit Discord's 2000 char limit
+          # Reserve space for header/footer text in first/last messages
+          HEADER_LEN=${#HEADER}
+          FOOTER_LEN=${#FOOTER}
+          FIRST_BUDGET=$((1900 - HEADER_LEN))
+          MIDDLE_BUDGET=1900
+          LAST_BUDGET=$((1900 - FOOTER_LEN))
 
-          curl -s -o /dev/null -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$DISCORD_WEBHOOK_URL"
+          MESSAGES=()
+          CURRENT=""
+          FIRST=true
+
+          while IFS= read -r line; do
+            BUDGET=$MIDDLE_BUDGET
+            if [ "$FIRST" = true ]; then
+              BUDGET=$FIRST_BUDGET
+            fi
+
+            CANDIDATE="${CURRENT:+$CURRENT
+          }${line}"
+            if [ ${#CANDIDATE} -gt "$BUDGET" ] && [ -n "$CURRENT" ]; then
+              MESSAGES+=("$CURRENT")
+              CURRENT="$line"
+              FIRST=false
+            else
+              CURRENT="$CANDIDATE"
+            fi
+          done <<< "$BODY"
+          [ -n "$CURRENT" ] && MESSAGES+=("$CURRENT")
+
+          TOTAL=${#MESSAGES[@]}
+          for i in "${!MESSAGES[@]}"; do
+            MSG=""
+            if [ "$i" -eq 0 ]; then
+              MSG="${HEADER}
+          ${MESSAGES[$i]}"
+            else
+              MSG="${MESSAGES[$i]}"
+            fi
+            if [ "$i" -eq $((TOTAL - 1)) ]; then
+              MSG="${MSG}
+          ${FOOTER}"
+            fi
+            MSG=$(echo "$MSG" | sed 's/^          //')
+
+            PAYLOAD=$(jq -n --arg content "$MSG" '{ content: $content }')
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$DISCORD_WEBHOOK_URL")
+            echo "Message $((i+1))/${TOTAL}: HTTP ${HTTP_CODE}"
+
+            # Small delay between messages to preserve ordering
+            if [ "$i" -lt $((TOTAL - 1)) ]; then
+              sleep 1
+            fi
+          done
 
       - name: Notify Discord (release channel — stable only)
         if: steps.guard.outputs.skip != 'true' && success() && steps.changelog.outputs.channel == 'release'
@@ -124,28 +174,76 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_RELEASE }}
           VERSION: ${{ steps.changelog.outputs.version }}
           NOTES: ${{ steps.changelog.outputs.notes }}
+          ROLE_MENTION: "<@&1444387824005808128>"
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then
             echo "No release Discord webhook configured, skipping."
             exit 0
           fi
 
-          # Build changelog body from NOTES (strip the ## header line, keep the rest)
           BODY=$(echo "$NOTES" | sed '1{/^## /d}' | sed '/^[[:space:]]*$/d')
 
-          MESSAGE="<@&1444387824005808128>
+          HEADER="${ROLE_MENTION}
           ### 🔔 Update ${VERSION} is Live!
           **Download:** [CurseForge](<https://www.curseforge.com/wow/addons/danders-frames>) • [Wago](<https://addons.wago.io/addons/danders-frames>) • [GitHub Releases](<https://github.com/DanderBot/DandersFrames/releases>)
-          **Support Development:** [PayPal](<https://paypal.me/dandersframesaddon>)
-          ${BODY}
-          *Note: It may take 15-30 minutes to appear on the CurseForge client.*"
+          **Support Development:** [PayPal](<https://paypal.me/dandersframesaddon>)"
+          HEADER=$(echo "$HEADER" | sed 's/^          //')
 
-          # Remove leading whitespace from heredoc-style indentation
-          MESSAGE=$(echo "$MESSAGE" | sed 's/^          //')
+          FOOTER="*Note: It may take 15-30 minutes to appear on the CurseForge client.*"
 
-          PAYLOAD=$(jq -n --arg content "$MESSAGE" '{ content: $content }')
+          HEADER_LEN=${#HEADER}
+          FOOTER_LEN=${#FOOTER}
+          ROLE_LEN=${#ROLE_MENTION}
+          FIRST_BUDGET=$((1900 - HEADER_LEN))
+          MIDDLE_BUDGET=$((1900 - ROLE_LEN - 1))
+          LAST_BUDGET=$((1900 - FOOTER_LEN - ROLE_LEN - 1))
 
-          curl -s -o /dev/null -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$DISCORD_WEBHOOK_URL"
+          MESSAGES=()
+          CURRENT=""
+          FIRST=true
+
+          while IFS= read -r line; do
+            BUDGET=$MIDDLE_BUDGET
+            if [ "$FIRST" = true ]; then
+              BUDGET=$FIRST_BUDGET
+            fi
+
+            CANDIDATE="${CURRENT:+$CURRENT
+          }${line}"
+            if [ ${#CANDIDATE} -gt "$BUDGET" ] && [ -n "$CURRENT" ]; then
+              MESSAGES+=("$CURRENT")
+              CURRENT="$line"
+              FIRST=false
+            else
+              CURRENT="$CANDIDATE"
+            fi
+          done <<< "$BODY"
+          [ -n "$CURRENT" ] && MESSAGES+=("$CURRENT")
+
+          TOTAL=${#MESSAGES[@]}
+          for i in "${!MESSAGES[@]}"; do
+            MSG=""
+            if [ "$i" -eq 0 ]; then
+              MSG="${HEADER}
+          ${MESSAGES[$i]}"
+            else
+              MSG="${ROLE_MENTION}
+          ${MESSAGES[$i]}"
+            fi
+            if [ "$i" -eq $((TOTAL - 1)) ]; then
+              MSG="${MSG}
+          ${FOOTER}"
+            fi
+            MSG=$(echo "$MSG" | sed 's/^          //')
+
+            PAYLOAD=$(jq -n --arg content "$MSG" '{ content: $content }')
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$DISCORD_WEBHOOK_URL")
+            echo "Message $((i+1))/${TOTAL}: HTTP ${HTTP_CODE}"
+
+            if [ "$i" -lt $((TOTAL - 1)) ]; then
+              sleep 1
+            fi
+          done

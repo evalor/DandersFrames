@@ -1,8 +1,15 @@
 # DandersFrames Changelog
 
-## [4.0.7] - 2026-02-16
+## [4.0.7] - 2026-02-18
 
 ### Bug Fixes
+* Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
+* Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
+* Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
+* Fix auto layout override count showing +1 — unmapped keys no longer inflate the badge count
+* Fix raidTestFrameCount not trackable as a profile override — added to OVERRIDE_TAB_MAP under Frame tab
+* Fix auto layout override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
+* Fix profiles not persisting per character — currentProfile is now stored in per-character saved variables so each character remembers their own profile
 * Fix pet frames vanishing after reload — pet frame updates were skipped in header mode, so they were never shown after login or `/rl`
 * Fix pet frame font crash on non-English clients
 * Reduce redundant pet frame updates during startup (throttled from 6 calls to 1-2)
@@ -13,8 +20,13 @@
 * Fix name text truncation not applied to offline players — offline frames showed full names ignoring the truncation setting
 * Fix summon icon permanently stuck on frames after M+ start or group leave — summon icons now refresh on roster and zone changes
 * Fix icon alpha settings (role, leader, raid target, ready check) reverting to 100% after releasing the slider — appearance system was ignoring user-set alpha values
+* Fix click-casting not working when clicking on aura/defensive icons — mouse click events were not propagating to the parent unit button
+* Fix click-casting "Spell not learned" when queuing as different spec — macros now resolve the current spec's spell override instead of using the stored root spell name
+* Fix absorb bar not fading when unit is out of range — health event updates were overwriting the OOR alpha on every tick
 
 ### New Features
+* Auto-show changelog when opening settings for the first time after an update
+* Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
 
 ## [4.0.6] - 2026-02-15

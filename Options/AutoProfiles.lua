@@ -96,6 +96,7 @@ local OVERRIDE_TAB_MAP = {
     -- General (specific before generic)
     {"fontShadow",          "general_fonts",        "Global Fonts"},
     {"groupLabel",          "general_labels",       "Group Labels"},
+    {"raidTestFrameCount",  "general_frame",        "Frame"},
     {"raidUseGroups",       "general_frame",        "Frame"},
     {"raidGroupVisible",    "general_frame",        "Frame"},
     {"raidPlayerPerRow",    "general_frame",        "Frame"},
@@ -441,16 +442,16 @@ function AutoProfilesUI:BuildPage(GUI, pageFrame, db, Add, AddSpace)
     
     -- Only show for Raid mode
     if GUI.SelectedMode ~= "raid" then
-        Add(GUI:CreateHeader(pageFrame.child, "Raid Auto Profiles"), 40, "both")
+        Add(GUI:CreateHeader(pageFrame.child, "Raid Auto Layouts"), 40, "both")
         Add(GUI:CreateLabel(pageFrame.child,
-            "Auto Profiles is a Raid-only feature. Switch to Raid mode to configure automatic profile switching based on content type and group size.",
+            "Auto Layouts is a Raid-only feature. Switch to Raid mode to configure automatic layout switching based on content type and group size.",
             500, {r = 0.6, g = 0.6, b = 0.6}), 60, "both")
         return
     end
 
     -- Gate auto-profiles behind alpha/beta channel — show "Coming Soon" on stable
     if DF.RELEASE_CHANNEL == "release" then
-        Add(GUI:CreateHeader(pageFrame.child, "Auto Profiles"), 40, "both")
+        Add(GUI:CreateHeader(pageFrame.child, "Auto Layouts"), 40, "both")
         AddSpace(20, "both")
 
         local comingSoon = CreateFrame("Frame", nil, pageFrame.child, "BackdropTemplate")
@@ -925,11 +926,13 @@ function AutoProfilesUI:CreateProfileRow(GUI, pageFrame, parent, contentType, pr
         end)
     end
     
-    -- Override count
+    -- Override count (only mapped keys — "Other" overrides show in tooltip but don't inflate the badge)
     local overrideCount = 0
     if profile.overrides then
-        for _ in pairs(profile.overrides) do
-            overrideCount = overrideCount + 1
+        for key in pairs(profile.overrides) do
+            if GetOverrideTabId(key) then
+                overrideCount = overrideCount + 1
+            end
         end
     end
     
@@ -1030,7 +1033,24 @@ function AutoProfilesUI:CreateProfileRow(GUI, pageFrame, parent, contentType, pr
     editBtn:SetScript("OnClick", function()
         AutoProfilesUI:EnterEditing(contentType.key, index)
     end)
-    
+
+    -- Grey out edit button if a different runtime profile is active
+    if self.activeRuntimeProfile and self.activeRuntimeProfile ~= profile then
+        editText:SetTextColor(0.3, 0.3, 0.3)
+        editBtn:SetBackdropColor(0.1, 0.1, 0.1, 0.5)
+        editBtn:SetBackdropBorderColor(0.2, 0.2, 0.2, 0.5)
+        editBtn:SetScript("OnEnter", function(btn)
+            GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Cannot Edit", 1, 0.3, 0.3)
+            GameTooltip:AddLine("Only the active layout can be edited\nwhile auto layouts are running.", 0.7, 0.7, 0.7, true)
+            GameTooltip:Show()
+        end)
+        editBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+        editBtn:SetScript("OnClick", function() end)
+    end
+
     -- Delete button
     local deleteBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
     deleteBtn:SetSize(22, 20)
@@ -1753,13 +1773,7 @@ function AutoProfilesUI:EnterEditing(contentType, profileIndex)
     -- SetProfileSetting/GetGlobalValue always know the original globals
     self.globalSnapshot = {}
     for key, value in pairs(DF.db.raid) do
-        if type(value) == "table" then
-            local copy = {}
-            for k, v in pairs(value) do copy[k] = v end
-            self.globalSnapshot[key] = copy
-        else
-            self.globalSnapshot[key] = value
-        end
+        self.globalSnapshot[key] = DeepCopyValue(value)
     end
     
     -- Snapshot pinned frames overridable settings (stored as "pinned.N.setting" keys)
@@ -1783,23 +1797,11 @@ function AutoProfilesUI:EnterEditing(contentType, profileIndex)
                 -- Backfill nil values with defaults so snapshot always has a baseline
                 if value == nil then
                     value = PINNED_DEFAULTS[setting]
-                    if type(value) == "table" then
-                        local copy = {}
-                        for k, v in pairs(value) do copy[k] = v end
-                        set[setting] = copy
-                        value = set[setting]
-                    else
-                        set[setting] = value
-                    end
+                    set[setting] = DeepCopyValue(value)
+                    value = set[setting]
                 end
                 local snapKey = "pinned." .. setIdx .. "." .. setting
-                if type(value) == "table" then
-                    local copy = {}
-                    for k, v in pairs(value) do copy[k] = v end
-                    self.globalSnapshot[snapKey] = copy
-                else
-                    self.globalSnapshot[snapKey] = value
-                end
+                self.globalSnapshot[snapKey] = DeepCopyValue(value)
             end
         end
     end
@@ -1807,13 +1809,7 @@ function AutoProfilesUI:EnterEditing(contentType, profileIndex)
     -- Apply existing overrides to db.raid for live preview
     if self.editingProfile.overrides then
         for key, value in pairs(self.editingProfile.overrides) do
-            if type(value) == "table" then
-                local copy = {}
-                for k, v in pairs(value) do copy[k] = v end
-                SetRaidValue(key, copy)
-            else
-                SetRaidValue(key, value)
-            end
+            SetRaidValue(key, DeepCopyValue(value))
         end
     end
     
@@ -1828,7 +1824,12 @@ function AutoProfilesUI:EnterEditing(contentType, profileIndex)
             DF.PinnedFrames:UpdateHeaderNameList(i)
         end
     end
-    
+
+    -- Refresh test mode frames so they display override values
+    if DF.raidTestMode and DF.RefreshTestFramesWithLayout then
+        DF:RefreshTestFramesWithLayout()
+    end
+
     -- Refresh the GUI to show editing banner and disable Auto Profiles tab
     self:RefreshEditingUI()
     
@@ -1861,49 +1862,21 @@ function AutoProfilesUI:ExitEditing(skipUIUpdates)
         
         for key, snapshotVal in pairs(self.globalSnapshot) do
             local currentVal = GetRaidValue(key)  -- Handles raid, table, and pinned keys
-            local matches = true
-            
-            if type(snapshotVal) == "table" and type(currentVal) == "table" then
-                -- Deep compare (handles arrays and color tables)
-                if #snapshotVal > 0 or #currentVal > 0 then
-                    -- Array comparison (ordered) - important for players lists
-                    if #snapshotVal ~= #currentVal then
-                        matches = false
-                    else
-                        for i = 1, #snapshotVal do
-                            if snapshotVal[i] ~= currentVal[i] then
-                                matches = false
-                                break
-                            end
-                        end
-                    end
-                else
-                    -- Hash table comparison (colors etc)
-                    for k, v in pairs(snapshotVal) do
-                        if currentVal[k] ~= v then matches = false; break end
-                    end
-                    if matches then
-                        for k, v in pairs(currentVal) do
-                            if snapshotVal[k] ~= v then matches = false; break end
-                        end
-                    end
-                end
-            else
-                matches = (snapshotVal == currentVal)
-            end
-            
+            local matches = DeepCompare(snapshotVal, currentVal)
+
             if not matches and overrides[key] == nil then
                 -- Value changed but no override recorded — auto-store it
-                if type(currentVal) == "table" then
-                    local copy = {}
-                    for k, v in pairs(currentVal) do copy[k] = v end
-                    overrides[key] = copy
-                else
-                    overrides[key] = currentVal
-                end
+                overrides[key] = DeepCopyValue(currentVal)
             elseif matches and overrides[key] ~= nil then
                 -- Value matches global but override exists — clean it up
                 overrides[key] = nil
+            end
+        end
+
+        -- Remove orphan keys created during editing that aren't tracked overrides
+        for key in pairs(DF.db.raid) do
+            if self.globalSnapshot[key] == nil and not overrides[key] then
+                DF.db.raid[key] = nil
             end
         end
     end
@@ -1912,13 +1885,7 @@ function AutoProfilesUI:ExitEditing(skipUIUpdates)
     -- SetRaidValue handles raid keys, table keys, and pinned keys
     if self.globalSnapshot then
         for key, originalValue in pairs(self.globalSnapshot) do
-            if type(originalValue) == "table" then
-                local copy = {}
-                for k, v in pairs(originalValue) do copy[k] = v end
-                SetRaidValue(key, copy)
-            else
-                SetRaidValue(key, originalValue)
-            end
+            SetRaidValue(key, DeepCopyValue(originalValue))
         end
     end
     
@@ -2442,44 +2409,15 @@ function AutoProfilesUI:SetProfileSetting(key, value)
         globalValue = GetRaidValue(key)
     end
     
-    -- Compare values (handle tables like colors)
-    local valuesMatch = false
-    if type(value) == "table" and type(globalValue) == "table" then
-        -- Deep compare for color tables
-        valuesMatch = true
-        for k, v in pairs(globalValue) do
-            if value[k] ~= v then
-                valuesMatch = false
-                break
-            end
-        end
-        if valuesMatch then
-            for k, v in pairs(value) do
-                if globalValue[k] ~= v then
-                    valuesMatch = false
-                    break
-                end
-            end
-        end
-    else
-        valuesMatch = (value == globalValue)
-    end
-    
+    -- Compare values (recursive deep compare handles nested tables like colors)
+    local valuesMatch = DeepCompare(value, globalValue)
+
     if valuesMatch then
         -- Same as global, remove override
         self.editingProfile.overrides[key] = nil
     else
-        -- Different from global, store override
-        -- Deep copy tables to avoid reference issues
-        if type(value) == "table" then
-            local copy = {}
-            for k, v in pairs(value) do
-                copy[k] = v
-            end
-            self.editingProfile.overrides[key] = copy
-        else
-            self.editingProfile.overrides[key] = value
-        end
+        -- Different from global, store override (deep copy to avoid reference issues)
+        self.editingProfile.overrides[key] = DeepCopyValue(value)
     end
 
     -- Refresh tab stars so they update live as settings change
@@ -2502,14 +2440,8 @@ function AutoProfilesUI:ResetProfileSetting(key)
         globalValue = GetRaidValue(key)
     end
     
-    -- Deep copy tables
-    if type(globalValue) == "table" then
-        local copy = {}
-        for k, v in pairs(globalValue) do copy[k] = v end
-        SetRaidValue(key, copy)
-    else
-        SetRaidValue(key, globalValue)
-    end
+    -- Deep copy to avoid mutating the snapshot
+    SetRaidValue(key, DeepCopyValue(globalValue))
 
     -- Refresh tab stars so they update live as overrides are removed
     self:RefreshTabOverrideStars()
@@ -2518,11 +2450,12 @@ function AutoProfilesUI:ResetProfileSetting(key)
 end
 
 -- Get the global value for a setting (for display purposes)
+-- Returns a deep copy to prevent callers from mutating the snapshot
 function AutoProfilesUI:GetGlobalValue(key)
     -- When editing, return the true global from snapshot (db.raid may have overridden values)
     local snapshotVal, found = GetSnapshotValue(self.globalSnapshot, key)
     if found then
-        return snapshotVal
+        return DeepCopyValue(snapshotVal)
     end
     return GetRaidValue(key)
 end
@@ -2585,33 +2518,26 @@ end
 -- content type and raid size changes
 -- ============================================================
 
--- Deep-compare two values (handles tables like colors and arrays)
+-- Deep-compare two values (recursive for nested tables)
 local function DeepCompare(a, b)
     if type(a) ~= type(b) then return false end
     if type(a) ~= "table" then return a == b end
-    -- Array comparison
-    if #a > 0 or #b > 0 then
-        if #a ~= #b then return false end
-        for i = 1, #a do
-            if a[i] ~= b[i] then return false end
-        end
-        return true
-    end
-    -- Hash comparison
     for k, v in pairs(a) do
-        if b[k] ~= v then return false end
+        if not DeepCompare(v, b[k]) then return false end
     end
-    for k, v in pairs(b) do
-        if a[k] ~= v then return false end
+    for k in pairs(b) do
+        if a[k] == nil then return false end
     end
     return true
 end
 
--- Deep-copy a value (shallow for non-tables)
+-- Deep-copy a value (recursive for nested tables)
 local function DeepCopyValue(value)
     if type(value) ~= "table" then return value end
     local copy = {}
-    for k, v in pairs(value) do copy[k] = v end
+    for k, v in pairs(value) do
+        copy[k] = DeepCopyValue(v)
+    end
     return copy
 end
 
