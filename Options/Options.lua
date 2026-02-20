@@ -1626,14 +1626,35 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             end)
             container.overrideResetBtn = resetBtn
             
-            -- Star icon
-            local starIcon = container:CreateTexture(nil, "OVERLAY")
+            -- Star icon (Button with invisible backdrop for reliable mouse events)
+            local starFrame = CreateFrame("Button", nil, container, "BackdropTemplate")
+            starFrame:SetSize(18, 18)
+            starFrame:SetPoint("RIGHT", resetBtn, "LEFT", -2, 0)
+            starFrame:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1,
+            })
+            starFrame:SetBackdropColor(0, 0, 0, 0)
+            starFrame:SetBackdropBorderColor(0, 0, 0, 0)
+            starFrame:Hide()
+            local starIcon = starFrame:CreateTexture(nil, "OVERLAY")
             starIcon:SetSize(12, 12)
-            starIcon:SetPoint("RIGHT", resetBtn, "LEFT", -4, 0)
+            starIcon:SetPoint("CENTER")
             starIcon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\star")
             starIcon:SetVertexColor(1, 0.8, 0.2)
-            starIcon:Hide()
-            container.overrideStar = starIcon
+            starFrame:SetScript("OnEnter", function(s)
+                if s.tooltipText then
+                    GameTooltip:SetOwner(s, "ANCHOR_RIGHT")
+                    GameTooltip:SetText(s.tooltipText)
+                    if s.tooltipSubText then
+                        GameTooltip:AddLine(s.tooltipSubText, 1, 1, 1, true)
+                    end
+                    GameTooltip:Show()
+                end
+            end)
+            starFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            container.overrideStar = starFrame
             
             -- Global value text
             local globalText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -1682,6 +1703,8 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
 
                 -- Runtime override mode: show star + global value, no reset button
                 if isRuntimeOverridden and not isEditing then
+                    self.overrideStar.tooltipText = "Overridden by Auto Layout"
+                    self.overrideStar.tooltipSubText = "This setting is being overridden by the active auto layout profile. To change it, edit the profile in the Auto Layouts tab."
                     self.overrideStar:Show()
                     self.overrideResetBtn:Hide()
                     self.overrideCheckIcon:Hide()
@@ -1713,6 +1736,8 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 local globalValue = AutoProfilesUI:GetGlobalValue(pinnedKey)
 
                 if isOverridden then
+                    self.overrideStar.tooltipText = "Overridden in this layout"
+                    self.overrideStar.tooltipSubText = "This setting differs from the global profile value. Click the reset button to revert."
                     self.overrideStar:Show()
                     self.overrideResetBtn:Show()
                 else

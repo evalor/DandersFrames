@@ -1728,6 +1728,8 @@ function AutoProfilesUI:SubmitDialog()
         if dialog.pageFrame and dialog.pageFrame.Refresh then
             dialog.pageFrame:Refresh()
         end
+        -- Re-evaluate which profile should be active after range change
+        self:EvaluateAndApply()
     else
         dialog.validationIcon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\close")
         dialog.validationIcon:SetVertexColor(0.85, 0.3, 0.3)
@@ -1861,6 +1863,19 @@ function AutoProfilesUI:EnterEditing(contentType, profileIndex)
     -- Show override stars on tabs that have overridden settings
     self:RefreshTabOverrideStars()
 
+    return true
+end
+
+-- Deep-compare two values (recursive for nested tables)
+local function DeepCompare(a, b)
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" then return a == b end
+    for k, v in pairs(a) do
+        if not DeepCompare(v, b[k]) then return false end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then return false end
+    end
     return true
 end
 
@@ -2531,19 +2546,6 @@ end
 -- content type and raid size changes
 -- ============================================================
 
--- Deep-compare two values (recursive for nested tables)
-local function DeepCompare(a, b)
-    if type(a) ~= type(b) then return false end
-    if type(a) ~= "table" then return a == b end
-    for k, v in pairs(a) do
-        if not DeepCompare(v, b[k]) then return false end
-    end
-    for k in pairs(b) do
-        if a[k] == nil then return false end
-    end
-    return true
-end
-
 -- Get a display name for a content key
 local function GetContentDisplayName(contentKey)
     if contentKey == "mythic" then return "Mythic"
@@ -2669,6 +2671,7 @@ end
 -- For nested keys we also need to update the real sub-table manually.
 -- Returns true if the key is overridden (caller should skip frame refresh).
 function AutoProfilesUI:HandleRuntimeWrite(key, value)
+    if not key then return false end
     if not self.activeRuntimeProfile or not DF.raidOverrides then return false end
 
     -- Check if this key (or its parent) is covered by the overlay
@@ -2692,8 +2695,12 @@ function AutoProfilesUI:HandleRuntimeWrite(key, value)
         return DF.raidOverrides[tableName] ~= nil
     end
 
-    -- Simple key: proxy __newindex already wrote to real table
-    return DF.raidOverrides[key] ~= nil
+    -- Simple key: write to real table so user changes persist in the global profile
+    if DF.raidOverrides[key] ~= nil then
+        DF._realRaidDB[key] = value
+        return true
+    end
+    return false
 end
 
 -- Check if a setting key is currently overridden by an active runtime profile.

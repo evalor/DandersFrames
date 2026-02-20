@@ -3056,6 +3056,18 @@ function DF:WrapDB()
             return DF._realRaidDB[key]
         end,
         __newindex = function(_, key, value)
+            -- Guard against override value contamination: if a runtime auto profile
+            -- is active and the write value matches the override, it's a read-then-write
+            -- loop (not an intentional user change) — block it to keep the global clean.
+            local overrides = DF.raidOverrides
+            if overrides and overrides[key] ~= nil then
+                local apu = DF.AutoProfilesUI
+                if apu and apu.activeRuntimeProfile and not apu:IsEditing() then
+                    if value == overrides[key] then
+                        return
+                    end
+                end
+            end
             DF._realRaidDB[key] = value
         end,
     })

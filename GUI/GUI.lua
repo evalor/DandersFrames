@@ -639,13 +639,34 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
     container.overrideResetBtn = resetBtn
     
     -- Override icon (shown when overridden) - positioned LEFT of reset button, yellow/gold color
-    local starIcon = container:CreateTexture(nil, "OVERLAY")
+    local starBtn = CreateFrame("Button", nil, container, "BackdropTemplate")
+    starBtn:SetSize(18, 18)
+    starBtn:SetPoint("RIGHT", resetBtn, "LEFT", -2, 0)
+    starBtn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    starBtn:SetBackdropColor(0, 0, 0, 0)
+    starBtn:SetBackdropBorderColor(0, 0, 0, 0)
+    starBtn:Hide()
+    local starIcon = starBtn:CreateTexture(nil, "OVERLAY")
     starIcon:SetSize(12, 12)
-    starIcon:SetPoint("RIGHT", resetBtn, "LEFT", -4, 0)
+    starIcon:SetPoint("CENTER")
     starIcon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\star")
-    starIcon:SetVertexColor(1, 0.8, 0.2)  -- Yellow/gold
-    starIcon:Hide()
-    container.overrideStar = starIcon
+    starIcon:SetVertexColor(1, 0.8, 0.2)
+    starBtn:SetScript("OnEnter", function(s)
+        if s.tooltipText then
+            GameTooltip:SetOwner(s, "ANCHOR_RIGHT")
+            GameTooltip:SetText(s.tooltipText)
+            if s.tooltipSubText then
+                GameTooltip:AddLine(s.tooltipSubText, 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    starBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    container.overrideStar = starBtn
     
     -- Global value text (shown when in edit mode) - positioned inline after label
     local globalText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -703,6 +724,8 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
 
         -- Runtime override mode: show star + global value, but no reset button
         if isRuntimeOverridden and not isEditing then
+            self.overrideStar.tooltipText = "Overridden by Auto Layout"
+            self.overrideStar.tooltipSubText = "This setting is being overridden by the active auto layout profile. To change it, edit the profile in the Auto Layouts tab."
             self.overrideStar:Show()
             self.overrideResetBtn:Hide()  -- Can't reset runtime overrides from controls
             self.overrideCheckIcon:Hide()
@@ -744,6 +767,8 @@ local function AddOverrideIndicators(container, lbl, dbKey, onReset, verticalOff
 
         -- Show/hide star and reset button
         if isOverridden then
+            self.overrideStar.tooltipText = "Overridden in this layout"
+            self.overrideStar.tooltipSubText = "This setting differs from the global profile value. Click the reset button to revert."
             self.overrideStar:Show()
             self.overrideResetBtn:Show()
         else
@@ -835,14 +860,35 @@ local function AddOrderListOverrideIndicators(container, dbKey, onReset)
     end)
     container.overrideResetBtn = resetBtn
     
-    -- Star icon to the left of reset button
-    local starIcon = container:CreateTexture(nil, "OVERLAY")
+    -- Star icon to the left of reset button (Button for tooltip support)
+    local starBtn = CreateFrame("Button", nil, container, "BackdropTemplate")
+    starBtn:SetSize(18, 18)
+    starBtn:SetPoint("RIGHT", resetBtn, "LEFT", -2, 0)
+    starBtn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    starBtn:SetBackdropColor(0, 0, 0, 0)
+    starBtn:SetBackdropBorderColor(0, 0, 0, 0)
+    starBtn:Hide()
+    local starIcon = starBtn:CreateTexture(nil, "OVERLAY")
     starIcon:SetSize(12, 12)
-    starIcon:SetPoint("RIGHT", resetBtn, "LEFT", -2, 0)
+    starIcon:SetPoint("CENTER")
     starIcon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\star")
     starIcon:SetVertexColor(1, 0.8, 0.2)
-    starIcon:Hide()
-    container.overrideStar = starIcon
+    starBtn:SetScript("OnEnter", function(s)
+        if s.tooltipText then
+            GameTooltip:SetOwner(s, "ANCHOR_RIGHT")
+            GameTooltip:SetText(s.tooltipText)
+            if s.tooltipSubText then
+                GameTooltip:AddLine(s.tooltipSubText, 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    starBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    container.overrideStar = starBtn
     
     -- "Modified" text to the left of star
     local modifiedText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -886,6 +932,8 @@ local function AddOrderListOverrideIndicators(container, dbKey, onReset)
         local isOverridden = AutoProfilesUI:IsSettingOverridden(dbKey)
         
         if isOverridden then
+            self.overrideStar.tooltipText = "Overridden in this layout"
+            self.overrideStar.tooltipSubText = "This setting differs from the global profile value. Click the reset button to revert."
             self.overrideStar:Show()
             self.overrideResetBtn:Show()
             self.overrideModifiedText:Show()
@@ -895,7 +943,7 @@ local function AddOrderListOverrideIndicators(container, dbKey, onReset)
             self.overrideModifiedText:Hide()
         end
     end
-    
+
     -- Register for refresh tracking
     table.insert(overrideWidgets, container)
 end

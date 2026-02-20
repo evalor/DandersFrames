@@ -6,9 +6,14 @@
 * Refactor auto layout runtime overrides to use a read-through overlay proxy — overrides are now applied transparently at read time instead of mutating the saved raid settings table, eliminating profile contamination on logout/reload and removing the strip/reapply save dance
 * Remove element-specific health fade alpha (per-element sliders) — frame-level fade via SetAlpha cascades to all children, making per-element curves unnecessary and improving performance
 * Fix CI releasing and posting Discord notifications on changelog-only commits — Changelog.lua is now in the build guard skip list
+* Add tooltip to override star icons — hovering the star explains the setting is overridden by auto layout and how to change it
 
 ### Bug Fixes
 * Fix health fade threshold comparison error with secret numbers — use C_CurveUtil color curves to encode fade alpha, resolving health percent entirely engine-side without any Lua comparison of secret values
+* Fix auto layout runtime override contaminating global profile on setting change — proxy now blocks read-then-write loops that would copy override values into SavedVariables, while still persisting intentional user changes
+* Fix auto layout not re-evaluating active profile when player range is changed — editing a profile's range now triggers immediate profile re-evaluation
+* Fix auto layout error when editing active profile — DeepCompare was defined after its first use
+* Fix auto layout error when disabling — HandleRuntimeWrite now guards against nil key
 * Fix party frame container not repositioning when dragging the frame width or height slider — lightweight size update now re-applies header settings during drag
 * Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
 * Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
