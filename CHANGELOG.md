@@ -6,6 +6,7 @@
 * Refactor auto layout runtime overrides to use a read-through overlay proxy — overrides are now applied transparently at read time instead of mutating the saved raid settings table, eliminating profile contamination on logout/reload and removing the strip/reapply save dance
 
 ### Bug Fixes
+* Fix health fade threshold comparison error with secret numbers — use non-secret health percent from CurveConstants.ScaleTo100 directly instead of routing through a hidden StatusBar callback
 * Fix party frame container not repositioning when dragging the frame width or height slider — lightweight size update now re-applies header settings during drag
 * Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
 * Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh

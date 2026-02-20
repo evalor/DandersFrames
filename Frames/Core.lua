@@ -74,18 +74,17 @@ end
 DF.GetSafeHealthPercent = GetSafeHealthPercent
 
 -- Helper to set health bar value safely
--- UnitHealthPercent has SecretReturns=true (see Blizzard_APIDocumentation): we must NOT compare
--- its return in Lua. A hidden StatusBar receives the same value; its OnValueChanged callback
--- gets a resolved value we can use for health threshold fading.
+-- GetSafeHealthPercent uses CurveConstants.ScaleTo100 which returns a non-secret
+-- number (0-100) that is safe to compare in Lua.
 local function SetHealthBarValue(bar, unit, frame)
     if not bar then return end
-    
-    -- Get health percent (0-100); may be secret - only pass to StatusBar APIs, do not compare
+
+    -- Get health percent (0-100) — non-secret via CurveConstants.ScaleTo100
     local pct = GetSafeHealthPercent(unit)
-    
+
     -- Set bar range and value
     bar:SetMinMaxValues(0, 100)
-    
+
     -- Get the appropriate db for this frame
     local db
     if frame and frame.isRaidFrame then
@@ -94,35 +93,20 @@ local function SetHealthBarValue(bar, unit, frame)
         db = DF.GetDB and DF:GetDB()
     end
     local smoothEnabled = db and db.smoothBars
-    
+
     if smoothEnabled and Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut then
         bar:SetValue(pct, Enum.StatusBarInterpolation.ExponentialEaseOut)
     else
         bar:SetValue(pct)
     end
 
-    -- Health threshold fading: hidden bar's OnValueChanged receives resolved (comparable) value
-    if frame then
-        if not frame.dfHealthCheckBar then
-            frame.dfHealthCheckBar = CreateFrame("StatusBar", nil, bar)
-            frame.dfHealthCheckBar:SetSize(1, 1)
-            frame.dfHealthCheckBar:SetMinMaxValues(0, 100)
-            frame.dfHealthCheckBar:SetAlpha(0)
-            frame.dfHealthCheckBar:Hide()
-            frame.dfHealthCheckBar:SetScript("OnValueChanged", function(self, value)
-                if frame then
-                    local thresholdDb = frame.isRaidFrame and (DF.GetRaidDB and DF:GetRaidDB()) or (DF.GetDB and DF:GetDB())
-                    local threshold = (thresholdDb and thresholdDb.healthFadeThreshold) or 100
-                    -- value is resolved by engine; safe to compare
-                    frame.dfComputedAboveThreshold = (type(value) == "number" and value >= threshold - 0.5)
-                    if DF.UpdateHealthFade then
-                        DF:UpdateHealthFade(frame)
-                    end
-                end
-            end)
+    -- Health threshold fading: compare directly (pct is non-secret)
+    if frame and pct then
+        local threshold = (db and db.healthFadeThreshold) or 100
+        frame.dfComputedAboveThreshold = (pct >= threshold - 0.5)
+        if DF.UpdateHealthFade then
+            DF:UpdateHealthFade(frame)
         end
-        frame.dfHealthCheckBar:SetMinMaxValues(0, 100)
-        frame.dfHealthCheckBar:SetValue(pct)
     end
 end
 
