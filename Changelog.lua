@@ -1,31 +1,43 @@
 local addonName, DF = ...
-DF.ADDON_VERSION = "v4.0.7-alpha.4"
-DF.BUILD_DATE = "2026-02-18T12:00:00Z"
+DF.ADDON_VERSION = "v4.0.7-alpha.28"
+DF.BUILD_DATE = "2026-02-18T16:32:34Z"
 DF.RELEASE_CHANNEL = "alpha"
 DF.CHANGELOG_TEXT = [===[
 # DandersFrames Changelog
 
-## Unreleased (v4.0.7-alpha.4)
+## Unreleased (v4.0.7-alpha.28)
 
-- Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
-- Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
-- Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
-- Fix auto layout override count showing +1 — unmapped keys no longer inflate the badge count
-- Fix raidTestFrameCount not trackable as a profile override — added to OVERRIDE_TAB_MAP under Frame tab
-- Fix auto layout override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
-- Fix profiles not persisting per character — currentProfile is now stored in per-character saved variables so each character remembers their own profile
-- Fix absorb bar not fading when unit is out of range
-- Fix click-casting spell not learned when queuing as different spec
-- Fix click-casting not working when clicking on aura/defensive icons
-- Auto-show changelog when opening settings for the first time after an update
-- Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
+- Add PR #9 and #11 bug fixes to changelog (riyuk)
+- Update changelog with class power improvements and health fade bug fixes
+- Improve class power pips: colors, vertical layout, role filters, test mode multi-frame
+- Add PR #10 health fade and class power features to changelog
+- Fix health fade bugs: secret values, test mode keys, slider lag, animation
+- Add PR #8 sync toggle feature to changelog
+- Add early-out to SyncLinkedSections when no sections are linked
+- Fix party frame container not updating during width/height slider drag
+- Use Blizzard's display order for auras instead of slot/application order
+- Display auras in Blizzard's native slot order instead of random pairs() order
+- Fix forbidden table iteration in FindHealthManaBars
+- Add health fading and class power pips
+- Fix leader icon not updating on first leader change
+- Add sync toggle for linking Party & Raid settings per page
+- Add class power pips
+- feature/health-based-fading
 
 ---
 
 
-## [4.0.7] - 2026-02-16
+## [4.0.7] - 2026-02-18
 
 ### Bug Fixes
+* Fix party frame container not repositioning when dragging the frame width or height slider — lightweight size update now re-applies header settings during drag
+* Fix auto layout override editing contaminating the global profile — snapshot/restore now uses recursive deep copy to prevent shared nested table references
+* Fix extra row spacing when editing auto layout overrides — slider drags now trigger full test frame layout refresh
+* Fix auto layout edit button available on non-active profiles — greyed out with tooltip explaining only the active layout can be edited
+* Fix auto layout override count showing +1 — unmapped keys no longer inflate the badge count
+* Fix raidTestFrameCount not trackable as a profile override — added to OVERRIDE_TAB_MAP under Frame tab
+* Fix auto layout override values not showing on test mode frames — entering edit mode now refreshes test frames after applying overrides
+* Fix profiles not persisting per character — currentProfile is now stored in per-character saved variables so each character remembers their own profile
 * Fix pet frames vanishing after reload — pet frame updates were skipped in header mode, so they were never shown after login or `/rl`
 * Fix pet frame font crash on non-English clients
 * Reduce redundant pet frame updates during startup (throttled from 6 calls to 1-2)
@@ -39,8 +51,23 @@ DF.CHANGELOG_TEXT = [===[
 * Fix click-casting not working when clicking on aura/defensive icons — mouse click events were not propagating to the parent unit button
 * Fix click-casting "Spell not learned" when queuing as different spec — macros now resolve the current spec's spell override instead of using the stored root spell name
 * Fix absorb bar not fading when unit is out of range — health event updates were overwriting the OOR alpha on every tick
+* Fix pet health fade crash from secret number arithmetic — pet health APIs return opaque values that can't be compared directly
+* Fix health fade not working in test mode — setting keys were mismatched between Config defaults and TestMode references
+* Fix health fade threshold slider causing lag during drag — callback parameters were in the wrong position
+* Fix health fade not updating during test mode animate health — animation ticker now re-evaluates the fade threshold
+* Fix leader icon not updating on first leader change (contributed by riyuk)
+* Fix forbidden table iteration in FindHealthManaBars (contributed by riyuk)
 
 ### New Features
+* Add "Sync with Raid/Party" toggle per settings page — keeps party and raid settings in sync automatically when enabled, with per-profile persistence (contributed by Enf0)
+* Add health fade system — fades frames or individual elements when a unit's health is above a configurable threshold, with per-element alpha controls, dispel cancel override, and test mode support (contributed by X-Steeve)
+* Add class power pips — displays class-specific resources (Holy Power, Chi, Combo Points, Soul Shards, Arcane Charges, Essence) on the player's party/raid frame as colored pips with configurable size, position, and anchor (contributed by X-Steeve)
+* Add class power pip color options — custom foreground color toggle and background color picker with alpha
+* Add vertical pip layout — LEFT/RIGHT anchor positions stack pips along the frame side
+* Add class power role filter — checkboxes to show pips only for tank, healer, or DPS roles
+* Add class power test mode multi-frame support — all relevant class test frames now show partially filled pips for preview
+* Auto-show changelog when opening settings for the first time after an update
+* Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
 
 ## [4.0.6] - 2026-02-15
