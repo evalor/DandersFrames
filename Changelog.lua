@@ -7,22 +7,13 @@ DF.CHANGELOG_TEXT = [===[
 
 ## Unreleased (v4.0.7-alpha.28)
 
-- Add PR #9 and #11 bug fixes to changelog (riyuk)
-- Update changelog with class power improvements and health fade bug fixes
-- Improve class power pips: colors, vertical layout, role filters, test mode multi-frame
-- Add PR #10 health fade and class power features to changelog
-- Fix health fade bugs: secret values, test mode keys, slider lag, animation
-- Add PR #8 sync toggle feature to changelog
-- Add early-out to SyncLinkedSections when no sections are linked
-- Fix party frame container not updating during width/height slider drag
-- Use Blizzard's display order for auras instead of slot/application order
-- Display auras in Blizzard's native slot order instead of random pairs() order
-- Fix forbidden table iteration in FindHealthManaBars
-- Add health fading and class power pips
-- Fix leader icon not updating on first leader change
-- Add sync toggle for linking Party & Raid settings per page
-- Add class power pips
-- feature/health-based-fading
+- Fix resource bar showing white when first made visible
+- Fix resource bar not matching frame width on resize and test mode
+- Fix Clique compatibility — prevent duplicate registration, defer writes, commit all header children
+- Fix DF click-casting not working until reload when first enabled
+- Fix aura click-through not updating safely on login
+- Add per-class resource bar filter toggles
+- Auto-reload UI when toggling click-casting enable/disable
 
 ---
 
@@ -57,6 +48,11 @@ DF.CHANGELOG_TEXT = [===[
 * Fix health fade not updating during test mode animate health — animation ticker now re-evaluates the fade threshold
 * Fix leader icon not updating on first leader change (contributed by riyuk)
 * Fix forbidden table iteration in FindHealthManaBars (contributed by riyuk)
+* Fix resource bar showing white when first made visible — color was not initialized before the first show
+* Fix resource bar not matching frame width on resize and test mode — width now updates in both live and test frame paths
+* Fix Clique compatibility — prevent duplicate ClickCastFrames registration, defer writes until after metatable is ready, and commit all header children instead of only unit-matched frames
+* Fix DF click-casting not working until reload when first enabled — bindings are now applied immediately on enable without requiring `/rl`
+* Fix aura click-through not updating safely on login — moved UpdateAuraClickThrough to ADDON_LOADED to avoid combat lockdown issues
 
 ### New Features
 * Add "Sync with Raid/Party" toggle per settings page — keeps party and raid settings in sync automatically when enabled, with per-profile persistence (contributed by Enf0)
@@ -68,6 +64,8 @@ DF.CHANGELOG_TEXT = [===[
 * Add class power test mode multi-frame support — all relevant class test frames now show partially filled pips for preview
 * Auto-show changelog when opening settings for the first time after an update
 * Rename "Auto Profiles" to "Auto Layouts" throughout the settings UI
+* Add per-class resource bar filter toggles — show or hide the resource bar based on class
+* Auto-reload UI when toggling click-casting enable/disable — prompts for reload so bindings take effect immediately
 * Debug Console — persistent debug logging system with in-game viewer (`/df debug` to toggle, `/df console` to view). Logs persist across reloads with category filtering, severity levels, and clipboard export
 
 ## [4.0.6] - 2026-02-15
