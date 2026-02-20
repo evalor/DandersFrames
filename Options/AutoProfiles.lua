@@ -11,6 +11,16 @@ DF.AutoProfilesUI = AutoProfilesUI
 local C_RAID = {r = 1.0, g = 0.5, b = 0.2, a = 1}
 local C_WARNING = {r = 1.0, g = 0.67, b = 0.0, a = 1}
 
+-- Deep-copy a value (recursive for nested tables)
+local function DeepCopyValue(value)
+    if type(value) ~= "table" then return value end
+    local copy = {}
+    for k, v in pairs(value) do
+        copy[k] = DeepCopyValue(v)
+    end
+    return copy
+end
+
 -- Content type definitions
 local CONTENT_TYPES = {
     {
@@ -2529,16 +2539,6 @@ local function DeepCompare(a, b)
         if a[k] == nil then return false end
     end
     return true
-end
-
--- Deep-copy a value (recursive for nested tables)
-local function DeepCopyValue(value)
-    if type(value) ~= "table" then return value end
-    local copy = {}
-    for k, v in pairs(value) do
-        copy[k] = DeepCopyValue(v)
-    end
-    return copy
 end
 
 -- Get a display name for a content key
