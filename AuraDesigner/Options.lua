@@ -1980,32 +1980,87 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
     -- State for copy-from selection
     rightPanel.copySourceAura = nil
 
+    -- Custom popup menu frame (reusable, addon-styled)
+    local copyMenuFrame = CreateFrame("Frame", nil, rightPanel.copyDropdown, "BackdropTemplate")
+    copyMenuFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    copyMenuFrame:SetClampedToScreen(true)
+    ApplyBackdrop(copyMenuFrame, C_PANEL, C_BORDER)
+    copyMenuFrame:Hide()
+    local copyMenuButtons = {}
+
     -- Dropdown click: show menu of other auras for the current spec
     local copyDropdownBtn = CreateFrame("Button", nil, rightPanel.copyDropdown)
     copyDropdownBtn:SetAllPoints()
     copyDropdownBtn:SetScript("OnClick", function(self)
+        if copyMenuFrame:IsShown() then
+            copyMenuFrame:Hide()
+            return
+        end
+
         local spec = ResolveSpec()
         if not spec then return end
         local auraList = Adapter:GetTrackableAuras(spec)
         if not auraList then return end
 
-        local menuItems = {}
+        -- Clear old buttons
+        for _, btn in ipairs(copyMenuButtons) do
+            btn:Hide()
+            btn:SetParent(nil)
+        end
+        wipe(copyMenuButtons)
+
+        -- Build menu items
+        local idx = 0
         for _, info in ipairs(auraList) do
             if info.name ~= selectedAura then
-                tinsert(menuItems, {
-                    text = info.display,
-                    func = function()
-                        rightPanel.copySourceAura = info.name
-                        rightPanel.copyDropdownText:SetText(info.display)
-                        rightPanel.copyDropdownText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
-                    end,
-                })
+                local menuBtn = CreateFrame("Button", nil, copyMenuFrame)
+                menuBtn:SetPoint("TOPLEFT", 2, -2 - idx * 20)
+                menuBtn:SetPoint("TOPRIGHT", -2, -2 - idx * 20)
+                menuBtn:SetHeight(20)
+
+                local btnText = menuBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                btnText:SetPoint("LEFT", 8, 0)
+                btnText:SetText(info.display)
+                btnText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+
+                local hl = menuBtn:CreateTexture(nil, "HIGHLIGHT")
+                hl:SetAllPoints()
+                local c = GetThemeColor()
+                hl:SetColorTexture(c.r, c.g, c.b, 0.3)
+
+                local capturedName = info.name
+                local capturedDisplay = info.display
+                menuBtn:SetScript("OnClick", function()
+                    rightPanel.copySourceAura = capturedName
+                    rightPanel.copyDropdownText:SetText(capturedDisplay)
+                    rightPanel.copyDropdownText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+                    copyMenuFrame:Hide()
+                end)
+
+                tinsert(copyMenuButtons, menuBtn)
+                idx = idx + 1
             end
         end
 
-        -- Simple dropdown menu using WoW's EasyMenu
-        local menuFrame = CreateFrame("Frame", "DFAuraDesignerCopyMenu", UIParent, "UIDropDownMenuTemplate")
-        EasyMenu(menuItems, menuFrame, self, 0, 0, "MENU")
+        if idx == 0 then return end
+
+        copyMenuFrame:SetPoint("TOPLEFT", rightPanel.copyDropdown, "BOTTOMLEFT", 0, -2)
+        copyMenuFrame:SetPoint("TOPRIGHT", rightPanel.copyDropdown, "BOTTOMRIGHT", 0, -2)
+        copyMenuFrame:SetHeight(idx * 20 + 4)
+        copyMenuFrame:Show()
+    end)
+
+    -- Close menu when clicking elsewhere
+    copyMenuFrame:SetScript("OnShow", function()
+        copyMenuFrame:SetPropagateKeyboardInput(true)
+    end)
+    copyMenuFrame:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            self:Hide()
+            self:SetPropagateKeyboardInput(false)
+        else
+            self:SetPropagateKeyboardInput(true)
+        end
     end)
 
     -- Copy button click: copy all settings from source to current aura
