@@ -290,6 +290,7 @@ local tileStrip           -- Horizontal scrolling aura tile palette
 local tileStripContent    -- ScrollChild for tile strip
 local framePreview        -- Mock unit frame preview
 local activeEffectsStrip  -- Active effects list below preview
+local dragHintText        -- Dynamic hint text below frame preview
 local rightScrollFrame    -- Scroll frame for right panel content
 local rightScrollChild    -- ScrollChild for right panel
 
@@ -376,6 +377,13 @@ local function StartDrag(auraName, auraInfo, specKey)
     ghost.label:SetText(auraInfo.display)
     ghost:Show()
 
+    -- Show drag hint
+    if dragHintText then
+        local tc = GetThemeColor()
+        dragHintText:SetText("Drop on an anchor point to place " .. auraInfo.display)
+        dragHintText:SetTextColor(tc.r, tc.g, tc.b, 0.9)
+    end
+
     -- Enlarge all anchor dots to signal they are drop targets
     for _, dotFrame in pairs(anchorDots) do
         dotFrame.dot:SetSize(10, 10)
@@ -428,6 +436,11 @@ EndDrag = function()
     if dragUpdateFrame then
         dragUpdateFrame:Hide()
         dragUpdateFrame:SetScript("OnUpdate", nil)
+    end
+
+    -- Clear drag hint
+    if dragHintText then
+        dragHintText:SetText("")
     end
 
     -- Reset anchor dots to default
@@ -1271,7 +1284,11 @@ local function BuildGlobalView(parent)
     actionsTitle:SetTextColor(c.r, c.g, c.b)
     yPos = yPos - 24
 
-    -- Copy Settings to Raid button
+    -- Copy Settings to Other Mode button
+    local currentMode = (GUI and GUI.SelectedMode) or "party"
+    local targetMode = (currentMode == "party") and "raid" or "party"
+    local targetLabel = (targetMode == "raid") and "Raid" or "Party"
+
     local copyBtn = CreateFrame("Button", nil, parent, "BackdropTemplate")
     copyBtn:SetSize(238, 26)
     copyBtn:SetPoint("TOPLEFT", 10, yPos)
@@ -1279,7 +1296,7 @@ local function BuildGlobalView(parent)
 
     local copyText = copyBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     copyText:SetPoint("CENTER", 0, 0)
-    copyText:SetText("Copy Settings to Raid")
+    copyText:SetText("Copy Settings to " .. targetLabel)
     copyText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
 
     copyBtn:SetScript("OnEnter", function(self)
@@ -1289,8 +1306,10 @@ local function BuildGlobalView(parent)
         self:SetBackdropColor(C_ELEMENT.r, C_ELEMENT.g, C_ELEMENT.b, 1)
     end)
     copyBtn:SetScript("OnClick", function()
-        local source = DF:GetDB("party").auraDesigner
-        local dest = DF:GetDB("raid").auraDesigner
+        local srcMode = (GUI and GUI.SelectedMode) or "party"
+        local dstMode = (srcMode == "party") and "raid" or "party"
+        local source = DF:GetDB(srcMode).auraDesigner
+        local dest = DF:GetDB(dstMode).auraDesigner
         -- Deep copy
         local function DeepCopy(src)
             if type(src) ~= "table" then return src end
@@ -1300,7 +1319,8 @@ local function BuildGlobalView(parent)
         end
         local newCopy = DeepCopy(source)
         for k, v in pairs(newCopy) do dest[k] = v end
-        DF:Debug("Aura Designer: Copied party settings to raid")
+        local dstLabel = (dstMode == "raid") and "raid" or "party"
+        DF:Debug("Aura Designer: Copied " .. srcMode .. " settings to " .. dstLabel)
     end)
     yPos = yPos - 32
 
@@ -1601,53 +1621,103 @@ local function BuildPerAuraView(parent, auraName)
     div3:SetColorTexture(C_BORDER.r, C_BORDER.g, C_BORDER.b, 0.5)
     yPos = yPos - 12
 
-    -- ===== EXPIRING INDICATOR SECTION =====
-    local expTitle = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    expTitle:SetPoint("TOPLEFT", 10, yPos)
-    expTitle:SetText("Expiring Indicator")
+    -- ===== EXPIRING INDICATOR SECTION (Collapsible Accordion) =====
     local c = GetThemeColor()
-    expTitle:SetTextColor(c.r, c.g, c.b)
-    yPos = yPos - 20
+    local expCollapsed = true  -- Start collapsed
 
+    -- Accordion header button
+    local expHeader = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    expHeader:SetHeight(22)
+    expHeader:SetPoint("TOPLEFT", 0, yPos)
+    expHeader:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    ApplyBackdrop(expHeader, {r = C_ELEMENT.r * 0.8, g = C_ELEMENT.g * 0.8, b = C_ELEMENT.b * 0.8, a = 1}, {r = C_BORDER.r, g = C_BORDER.g, b = C_BORDER.b, a = 0.3})
+
+    local expChevron = expHeader:CreateFontString(nil, "OVERLAY")
+    expChevron:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    expChevron:SetPoint("LEFT", 10, 0)
+    expChevron:SetText("\226\150\182")  -- ▶ right-pointing triangle (collapsed)
+    expChevron:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+
+    local expTitleText = expHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    expTitleText:SetPoint("LEFT", expChevron, "RIGHT", 6, 0)
+    expTitleText:SetText("Expiring Indicator")
+    expTitleText:SetTextColor(c.r, c.g, c.b)
+
+    expHeader:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(C_HOVER.r, C_HOVER.g, C_HOVER.b, 1)
+    end)
+    expHeader:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(C_ELEMENT.r * 0.8, C_ELEMENT.g * 0.8, C_ELEMENT.b * 0.8, 1)
+    end)
+    yPos = yPos - 24
+
+    -- Container for all expiring controls
+    local expBody = CreateFrame("Frame", nil, parent)
+    expBody:SetPoint("TOPLEFT", 0, yPos)
+    expBody:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    expBody:Hide()  -- Start collapsed
+
+    local expYPos = 0
     local expProxy = CreateExpiringProxy(auraName)
 
-    local expEnabled = GUI:CreateCheckbox(parent, "Enable Expiring Effects", expProxy, "enabled")
-    expEnabled:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
+    local expEnabled = GUI:CreateCheckbox(expBody, "Enable Expiring Effects", expProxy, "enabled")
+    expEnabled:SetPoint("TOPLEFT", 5, expYPos)
+    expYPos = expYPos - 28
 
-    local expThreshold = GUI:CreateSlider(parent, "Threshold (%)", 1, 100, 1, expProxy, "threshold")
-    expThreshold:SetPoint("TOPLEFT", 5, yPos)
+    local expThreshold = GUI:CreateSlider(expBody, "Threshold (%)", 1, 100, 1, expProxy, "threshold")
+    expThreshold:SetPoint("TOPLEFT", 5, expYPos)
     expThreshold:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
+    expYPos = expYPos - 54
 
-    local expBorder = GUI:CreateCheckbox(parent, "Border on Expiring", expProxy, "borderEnabled")
-    expBorder:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
+    local expBorder = GUI:CreateCheckbox(expBody, "Border on Expiring", expProxy, "borderEnabled")
+    expBorder:SetPoint("TOPLEFT", 5, expYPos)
+    expYPos = expYPos - 28
 
-    local expBorderThickness = GUI:CreateSlider(parent, "Border Thickness", 1, 5, 1, expProxy, "borderThickness")
-    expBorderThickness:SetPoint("TOPLEFT", 5, yPos)
+    local expBorderThickness = GUI:CreateSlider(expBody, "Border Thickness", 1, 5, 1, expProxy, "borderThickness")
+    expBorderThickness:SetPoint("TOPLEFT", 5, expYPos)
     expBorderThickness:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
+    expYPos = expYPos - 54
 
-    local expBorderColor = GUI:CreateColorPicker(parent, "Expiring Border Color", expProxy, "borderColor", true)
-    expBorderColor:SetPoint("TOPLEFT", 5, yPos)
+    local expBorderColor = GUI:CreateColorPicker(expBody, "Expiring Border Color", expProxy, "borderColor", true)
+    expBorderColor:SetPoint("TOPLEFT", 5, expYPos)
     expBorderColor:SetWidth(contentWidth - 10)
-    yPos = yPos - 28
+    expYPos = expYPos - 28
 
-    local expPulsate = GUI:CreateCheckbox(parent, "Pulsate on Expiring", expProxy, "pulsate")
-    expPulsate:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
+    local expPulsate = GUI:CreateCheckbox(expBody, "Pulsate on Expiring", expProxy, "pulsate")
+    expPulsate:SetPoint("TOPLEFT", 5, expYPos)
+    expYPos = expYPos - 28
 
-    local expTint = GUI:CreateCheckbox(parent, "Tint on Expiring", expProxy, "tintEnabled")
-    expTint:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
+    local expTint = GUI:CreateCheckbox(expBody, "Tint on Expiring", expProxy, "tintEnabled")
+    expTint:SetPoint("TOPLEFT", 5, expYPos)
+    expYPos = expYPos - 28
 
-    local expTintColor = GUI:CreateColorPicker(parent, "Expiring Tint Color", expProxy, "tintColor", true)
-    expTintColor:SetPoint("TOPLEFT", 5, yPos)
+    local expTintColor = GUI:CreateColorPicker(expBody, "Expiring Tint Color", expProxy, "tintColor", true)
+    expTintColor:SetPoint("TOPLEFT", 5, expYPos)
     expTintColor:SetWidth(contentWidth - 10)
-    yPos = yPos - 34
+    expYPos = expYPos - 34
 
-    parent:SetHeight(-yPos + 10)
+    local EXP_BODY_HEIGHT = -expYPos
+    expBody:SetHeight(EXP_BODY_HEIGHT)
+
+    -- Toggle accordion
+    local function UpdateExpCollapse()
+        if expCollapsed then
+            expBody:Hide()
+            expChevron:SetText("\226\150\182")  -- ▶
+            parent:SetHeight(-yPos + 10)
+        else
+            expBody:Show()
+            expChevron:SetText("\226\150\188")  -- ▼
+            parent:SetHeight(-(yPos - EXP_BODY_HEIGHT) + 10)
+        end
+    end
+
+    expHeader:SetScript("OnClick", function()
+        expCollapsed = not expCollapsed
+        UpdateExpCollapse()
+    end)
+
+    UpdateExpCollapse()  -- Apply initial collapsed state
 end
 
 local function RefreshRightPanel()
@@ -2136,6 +2206,10 @@ local function CreateFramePreview(parent, yOffset, rightPanelRef)
                 dot:SetSize(14, 14)
                 dot:SetColorTexture(tc.r, tc.g, tc.b, 0.9)
                 dragState.dropAnchor = capturedAnchorName
+                -- Update hint to show target anchor
+                if dragHintText and dragState.auraInfo then
+                    dragHintText:SetText("Place " .. dragState.auraInfo.display .. " at " .. capturedAnchorName)
+                end
             else
                 dot:SetSize(10, 10)
                 dot:SetColorTexture(0.45, 0.45, 0.95, 0.7)
@@ -2147,6 +2221,12 @@ local function CreateFramePreview(parent, yOffset, rightPanelRef)
                 dot:SetSize(10, 10)
                 dot:SetColorTexture(0.45, 0.45, 0.95, 0.5)
                 dragState.dropAnchor = nil
+                -- Revert hint to generic drag message
+                if dragHintText and dragState.auraInfo then
+                    local tc = GetThemeColor()
+                    dragHintText:SetText("Drop on an anchor point to place " .. dragState.auraInfo.display)
+                    dragHintText:SetTextColor(tc.r, tc.g, tc.b, 0.9)
+                end
             else
                 dot:SetSize(6, 6)
                 dot:SetColorTexture(0.45, 0.45, 0.95, 0.3)
@@ -2190,6 +2270,13 @@ local function CreateFramePreview(parent, yOffset, rightPanelRef)
 
     -- Adjust container height to accommodate instructions
     container:SetHeight(max(FRAME_H + 60 + #instrRows * 14, 130 + #instrRows * 14))
+
+    -- Drag-state hint text (shows contextual guidance during drag operations)
+    dragHintText = container:CreateFontString(nil, "OVERLAY")
+    dragHintText:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    dragHintText:SetPoint("TOP", mockFrame, "BOTTOM", 0, -6)
+    dragHintText:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b, 0.8)
+    dragHintText:SetText("")
 
     return container
 end
@@ -2301,7 +2388,13 @@ local function RefreshActiveEffectsStrip()
         local entry = CreateFrame("Button", nil, stripParent, "BackdropTemplate")
         entry:SetSize(68, 74)
         entry:SetPoint("LEFT", stripParent, "LEFT", xOffset, 0)
-        ApplyBackdrop(entry, {r = 0, g = 0, b = 0, a = 0}, {r = 0, g = 0, b = 0, a = 0})  -- transparent bg, hover reveals
+        local isSelected = (effect.auraName == selectedAura)
+        if isSelected then
+            local tc = GetThemeColor()
+            ApplyBackdrop(entry, {r = tc.r * 0.12, g = tc.g * 0.12, b = tc.b * 0.12, a = 1}, {r = tc.r * 0.4, g = tc.g * 0.4, b = tc.b * 0.4, a = 0.6})
+        else
+            ApplyBackdrop(entry, {r = 0, g = 0, b = 0, a = 0}, {r = 0, g = 0, b = 0, a = 0})
+        end
 
         -- X button to disable (circular with danger hover)
         local xBtn = CreateFrame("Button", nil, entry, "BackdropTemplate")
@@ -2389,10 +2482,14 @@ local function RefreshActiveEffectsStrip()
             DF:AuraDesigner_RefreshPage()
         end)
         entry:SetScript("OnEnter", function(self)
-            self:SetBackdropColor(1, 1, 1, 0.03)
+            if not isSelected then
+                self:SetBackdropColor(1, 1, 1, 0.03)
+            end
         end)
         entry:SetScript("OnLeave", function(self)
-            self:SetBackdropColor(0, 0, 0, 0)
+            if not isSelected then
+                self:SetBackdropColor(0, 0, 0, 0)
+            end
         end)
 
         tinsert(activeEffectEntries, entry)
@@ -2483,12 +2580,17 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
     rightPanel.selHeader:SetPoint("TOPRIGHT", rightPanel.titleBar, "BOTTOMRIGHT", 0, 0)
     ApplyBackdrop(rightPanel.selHeader, C_BACKGROUND, {r = C_BORDER.r, g = C_BORDER.g, b = C_BORDER.b, a = 0.5})
 
-    rightPanel.selIcon = rightPanel.selHeader:CreateTexture(nil, "ARTWORK")
-    rightPanel.selIcon:SetPoint("LEFT", 10, 0)
-    rightPanel.selIcon:SetSize(28, 28)
+    rightPanel.selIconFrame = CreateFrame("Frame", nil, rightPanel.selHeader, "BackdropTemplate")
+    rightPanel.selIconFrame:SetSize(30, 30)
+    rightPanel.selIconFrame:SetPoint("LEFT", 10, 0)
+    ApplyBackdrop(rightPanel.selIconFrame, {r = 0, g = 0, b = 0, a = 0.3}, C_BORDER)
+
+    rightPanel.selIcon = rightPanel.selIconFrame:CreateTexture(nil, "ARTWORK")
+    rightPanel.selIcon:SetPoint("TOPLEFT", 1, -1)
+    rightPanel.selIcon:SetPoint("BOTTOMRIGHT", -1, 1)
 
     rightPanel.selName = rightPanel.selHeader:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    rightPanel.selName:SetPoint("TOPLEFT", rightPanel.selIcon, "TOPRIGHT", 8, -2)
+    rightPanel.selName:SetPoint("TOPLEFT", rightPanel.selIconFrame, "TOPRIGHT", 8, -2)
     rightPanel.selName:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
 
     rightPanel.selSub = rightPanel.selHeader:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
