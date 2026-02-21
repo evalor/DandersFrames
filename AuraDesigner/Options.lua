@@ -135,14 +135,18 @@ local function EnsureTypeConfig(auraName, typeKey)
                 anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
                 growth = "RIGHT", spacing = 2, size = 10,
                 color = {r = 1, g = 1, b = 1, a = 1}, alpha = 1.0,
-                borderEnabled = true, showDuration = false, showStacks = false,
+                borderEnabled = true, borderThickness = 1,
+                showDuration = false, showStacks = false,
+                stackMinimum = 2, stackScale = 1.0, stackFont = nil,
             }
         elseif typeKey == "bar" then
             auraCfg[typeKey] = {
                 anchor = "BOTTOM", offsetX = 0, offsetY = 0,
                 orientation = "HORIZONTAL", width = 0, height = 4,
-                matchFrameWidth = true, fillColor = {r = 1, g = 1, b = 1, a = 1},
+                matchFrameWidth = true, matchFrameHeight = false,
+                fillColor = {r = 1, g = 1, b = 1, a = 1},
                 bgColor = {r = 0, g = 0, b = 0, a = 0.5},
+                showBorder = true, borderThickness = 1,
                 borderColor = {r = 0, g = 0, b = 0, a = 1}, alpha = 1.0,
             }
         elseif typeKey == "border" then
