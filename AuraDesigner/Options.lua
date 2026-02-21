@@ -263,6 +263,19 @@ end
 -- Anchor dot pool (populated during CreateFramePreview, used by drag system)
 local anchorDots = {}
 
+-- Anchor point positions relative to the mock frame
+local ANCHOR_POSITIONS = {
+    TOPLEFT     = { x = 0,   y = 0,    ax = "TOPLEFT",     ay = "TOPLEFT"     },
+    TOP         = { x = 0.5, y = 0,    ax = "TOP",         ay = "TOP"         },
+    TOPRIGHT    = { x = 1,   y = 0,    ax = "TOPRIGHT",    ay = "TOPRIGHT"    },
+    LEFT        = { x = 0,   y = 0.5,  ax = "LEFT",        ay = "LEFT"        },
+    CENTER      = { x = 0.5, y = 0.5,  ax = "CENTER",      ay = "CENTER"      },
+    RIGHT       = { x = 1,   y = 0.5,  ax = "RIGHT",       ay = "RIGHT"       },
+    BOTTOMLEFT  = { x = 0,   y = 1,    ax = "BOTTOMLEFT",  ay = "BOTTOMLEFT"  },
+    BOTTOM      = { x = 0.5, y = 1,    ax = "BOTTOM",      ay = "BOTTOM"      },
+    BOTTOMRIGHT = { x = 1,   y = 1,    ax = "BOTTOMRIGHT", ay = "BOTTOMRIGHT" },
+}
+
 -- ============================================================
 -- FRAME REFERENCES (populated during build)
 -- Declared early so drag/indicator/effects code can capture them
@@ -1955,19 +1968,6 @@ end
 -- Mock unit frame with health bar, power bar, name, health %,
 -- and 9 anchor point dots for indicator placement
 -- ============================================================
-
--- Anchor point positions relative to the mock frame (260x90)
-local ANCHOR_POSITIONS = {
-    TOPLEFT     = { x = 0,   y = 0,    ax = "TOPLEFT",     ay = "TOPLEFT"     },
-    TOP         = { x = 0.5, y = 0,    ax = "TOP",         ay = "TOP"         },
-    TOPRIGHT    = { x = 1,   y = 0,    ax = "TOPRIGHT",    ay = "TOPRIGHT"    },
-    LEFT        = { x = 0,   y = 0.5,  ax = "LEFT",        ay = "LEFT"        },
-    CENTER      = { x = 0.5, y = 0.5,  ax = "CENTER",      ay = "CENTER"      },
-    RIGHT       = { x = 1,   y = 0.5,  ax = "RIGHT",       ay = "RIGHT"       },
-    BOTTOMLEFT  = { x = 0,   y = 1,    ax = "BOTTOMLEFT",  ay = "BOTTOMLEFT"  },
-    BOTTOM      = { x = 0.5, y = 1,    ax = "BOTTOM",      ay = "BOTTOM"      },
-    BOTTOMRIGHT = { x = 1,   y = 1,    ax = "BOTTOMRIGHT", ay = "BOTTOMRIGHT" },
-}
 
 local function CreateFramePreview(parent, yOffset, rightPanelRef)
     -- Read current frame settings for the preview
