@@ -266,6 +266,7 @@ end
 local mainFrame           -- The root frame for the entire page
 local leftPanel           -- Left content area (flexible width)
 local rightPanel          -- Right settings panel (280px fixed)
+local tileStripHeader     -- Header bar for tile strip (stores countLabel)
 local enableBanner        -- Enable toggle banner
 local attributionRow      -- HARF attribution row
 local tileStrip           -- Horizontal scrolling aura tile palette
@@ -419,16 +420,18 @@ local function CreateGlobalSettingsTile(parent)
     tile.iconBg:SetBackdropColor(C_ELEMENT.r, C_ELEMENT.g, C_ELEMENT.b, 1)
     tile.iconBg:SetBackdropBorderColor(0.40, 0.40, 0.40, 1)
 
-    tile.letter = tile.iconBg:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- Gear/cog icon
+    tile.letter = tile.iconBg:CreateFontString(nil, "OVERLAY")
+    tile.letter:SetFont("Fonts\\FRIZQT__.TTF", 22, "")
     tile.letter:SetPoint("CENTER", 0, 0)
-    tile.letter:SetText("*")
+    tile.letter:SetText("\226\154\153")  -- UTF-8 gear icon ⚙
     tile.letter:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
 
     tile.nameLabel = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     tile.nameLabel:SetPoint("TOP", tile.iconBg, "BOTTOM", 0, -3)
     tile.nameLabel:SetWidth(TILE_W)
     tile.nameLabel:SetMaxLines(1)
-    tile.nameLabel:SetText("Global")
+    tile.nameLabel:SetText("Global Settings")
     tile.nameLabel:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
 
     tile.auraName = nil
@@ -500,6 +503,11 @@ local function PopulateTileStrip()
 
     local totalWidth = TILE_PAD + (#auras + 1) * (68 + TILE_GAP) + TILE_PAD
     tileStripContent:SetWidth(totalWidth)
+
+    -- Update tile strip header count
+    if tileStripHeader and tileStripHeader.countLabel then
+        tileStripHeader.countLabel:SetText(tostring(#auras))
+    end
 end
 
 -- ============================================================
@@ -647,62 +655,130 @@ local rightPanelChildren = {}
 local function BuildGlobalView(parent)
     local adDB = GetAuraDesignerDB()
     local defaults = adDB.defaults
-    local yPos = -10
+    local yPos = -8
     local contentWidth = 258
+    local c = GetThemeColor()
 
     -- Title
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", 10, yPos)
     title:SetText("Global Defaults")
-    local c = GetThemeColor()
     title:SetTextColor(c.r, c.g, c.b)
-    yPos = yPos - 20
+    yPos = yPos - 18
 
-    -- Description
-    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    desc:SetPoint("TOPLEFT", 10, yPos)
-    desc:SetWidth(240)
-    desc:SetJustifyH("LEFT")
-    desc:SetWordWrap(true)
-    desc:SetText("Default values for all aura indicators. Per-aura settings override these when set.")
-    desc:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
-    yPos = yPos - 32
+    -- Sliders section label
+    local defaultIconLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    defaultIconLabel:SetPoint("TOPLEFT", 10, yPos)
+    defaultIconLabel:SetText("Default Icon Size")
+    defaultIconLabel:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+    yPos = yPos - 4
 
-    -- Icon defaults
     local iconSize = GUI:CreateSlider(parent, "Icon Size", 8, 64, 1, defaults, "iconSize")
     iconSize:SetPoint("TOPLEFT", 5, yPos)
     iconSize:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
+    yPos = yPos - 50
 
-    local iconScale = GUI:CreateSlider(parent, "Icon Scale", 0.5, 3.0, 0.05, defaults, "iconScale")
+    local defaultScaleLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    defaultScaleLabel:SetPoint("TOPLEFT", 10, yPos)
+    defaultScaleLabel:SetText("Default Scale")
+    defaultScaleLabel:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+    yPos = yPos - 4
+
+    local iconScale = GUI:CreateSlider(parent, "Scale", 0.5, 3.0, 0.05, defaults, "iconScale")
     iconScale:SetPoint("TOPLEFT", 5, yPos)
     iconScale:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
+    yPos = yPos - 50
 
     local showDuration = GUI:CreateCheckbox(parent, "Show Duration", defaults, "showDuration")
     showDuration:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
+    yPos = yPos - 24
 
-    local durationScale = GUI:CreateSlider(parent, "Duration Scale", 0.5, 2.0, 0.1, defaults, "durationScale")
-    durationScale:SetPoint("TOPLEFT", 5, yPos)
-    durationScale:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
-
-    local colorByTime = GUI:CreateCheckbox(parent, "Color Duration by Time", defaults, "durationColorByTime")
-    colorByTime:SetPoint("TOPLEFT", 5, yPos)
-    yPos = yPos - 28
-
-    local showStacks = GUI:CreateCheckbox(parent, "Show Stacks", defaults, "showStacks")
+    local showStacks = GUI:CreateCheckbox(parent, "Show Stack Count", defaults, "showStacks")
     showStacks:SetPoint("TOPLEFT", 5, yPos)
     yPos = yPos - 28
 
-    local stackMin = GUI:CreateSlider(parent, "Stack Minimum", 1, 10, 1, defaults, "stackMinimum")
-    stackMin:SetPoint("TOPLEFT", 5, yPos)
-    stackMin:SetWidth(contentWidth - 10)
-    yPos = yPos - 54
+    -- ===== IMPORT FROM BUFFS TAB =====
+    local div0 = parent:CreateTexture(nil, "ARTWORK")
+    div0:SetPoint("TOPLEFT", 10, yPos)
+    div0:SetSize(238, 1)
+    div0:SetColorTexture(C_BORDER.r, C_BORDER.g, C_BORDER.b, 0.5)
+    yPos = yPos - 10
 
-    local iconBorder = GUI:CreateCheckbox(parent, "Icon Border", defaults, "iconBorderEnabled")
-    iconBorder:SetPoint("TOPLEFT", 5, yPos)
+    local importTitle = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    importTitle:SetPoint("TOPLEFT", 10, yPos)
+    importTitle:SetText("Import from Buffs Tab")
+    importTitle:SetTextColor(c.r, c.g, c.b)
+    yPos = yPos - 18
+
+    local importDesc = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    importDesc:SetPoint("TOPLEFT", 10, yPos)
+    importDesc:SetWidth(238)
+    importDesc:SetJustifyH("LEFT")
+    importDesc:SetWordWrap(true)
+    importDesc:SetText("Import your existing Buffs tab settings as defaults for all auras. Compatible settings will be applied automatically.")
+    importDesc:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+    yPos = yPos - 36
+
+    -- Compatibility list
+    local compatItems = {
+        {true,  "Icon size, scale & border"},
+        {true,  "Duration & stack display"},
+        {true,  "Font settings"},
+        {false, "Position & anchors"},
+        {false, "Per-aura overrides"},
+    }
+    for _, item in ipairs(compatItems) do
+        local isCompat = item[1]
+        local itemLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        itemLabel:SetPoint("TOPLEFT", 18, yPos)
+        if isCompat then
+            itemLabel:SetText("|cff55cc55\226\156\147|r  " .. item[2])
+        else
+            itemLabel:SetText("|cffcc5555\195\151|r  " .. item[2])
+        end
+        itemLabel:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+        yPos = yPos - 16
+    end
+    yPos = yPos - 6
+
+    -- Import button
+    local importBtn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    importBtn:SetSize(238, 26)
+    importBtn:SetPoint("TOPLEFT", 10, yPos)
+    ApplyBackdrop(importBtn, C_ELEMENT, C_BORDER)
+
+    local importBtnText = importBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    importBtnText:SetPoint("CENTER", 0, 0)
+    importBtnText:SetText("Import Buffs Tab Defaults")
+    importBtnText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+
+    importBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(C_HOVER.r, C_HOVER.g, C_HOVER.b, 1)
+    end)
+    importBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(C_ELEMENT.r, C_ELEMENT.g, C_ELEMENT.b, 1)
+    end)
+    importBtn:SetScript("OnClick", function()
+        -- Import compatible settings from the Buffs tab
+        local mode = (GUI and GUI.SelectedMode) or "party"
+        local buffsDB = DF:GetDB(mode)
+        if buffsDB and defaults then
+            -- Icon size/scale
+            if buffsDB.buffSize then defaults.iconSize = buffsDB.buffSize end
+            if buffsDB.buffScale then defaults.iconScale = buffsDB.buffScale end
+            -- Duration/stacks
+            if buffsDB.buffShowDuration ~= nil then defaults.showDuration = buffsDB.buffShowDuration end
+            if buffsDB.buffShowStacks ~= nil then defaults.showStacks = buffsDB.buffShowStacks end
+            -- Border
+            if buffsDB.buffBorder ~= nil then defaults.iconBorderEnabled = buffsDB.buffBorder end
+            DF:Debug("Aura Designer: Imported Buffs tab defaults")
+            importBtnText:SetText("Imported!")
+            C_Timer.After(1.5, function()
+                importBtnText:SetText("Import Buffs Tab Defaults")
+            end)
+            DF:AuraDesigner_RefreshPage()
+        end
+    end)
     yPos = yPos - 34
 
     -- ===== DIVIDER =====
@@ -1100,6 +1176,22 @@ local function RefreshRightPanel()
     end
 
     -- ========================================
+    -- Show/hide copy row and adjust scroll position
+    -- ========================================
+    if rightPanel.copyRow then
+        if selectedAura ~= nil then
+            rightPanel.copyRow:Show()
+            rightPanel.copySourceAura = nil
+            rightPanel.copyDropdownText:SetText("Select aura...")
+            rightPanel.copyDropdownText:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+            rightScrollFrame:SetPoint("TOPLEFT", 0, -66)  -- 40 header + 26 copy row
+        else
+            rightPanel.copyRow:Hide()
+            rightScrollFrame:SetPoint("TOPLEFT", 0, -40)  -- just header
+        end
+    end
+
+    -- ========================================
     -- Build right panel content
     -- ========================================
     local container = CreateFrame("Frame", nil, rightScrollChild)
@@ -1152,9 +1244,14 @@ local function CreateEnableBanner(parent)
     end)
 
     local cbLabel = banner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    cbLabel:SetPoint("LEFT", cb, "RIGHT", 8, 0)
+    cbLabel:SetPoint("LEFT", cb, "RIGHT", 8, 2)
     cbLabel:SetText("Enable Aura Designer")
     cbLabel:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+
+    local cbSubLabel = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cbSubLabel:SetPoint("TOPLEFT", cbLabel, "BOTTOMLEFT", 0, -1)
+    cbSubLabel:SetText("(replaces Buffs tab)")
+    cbSubLabel:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
 
     local specLabel = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     specLabel:SetPoint("RIGHT", banner, "RIGHT", -145, 0)
@@ -1265,21 +1362,34 @@ local function CreateAttributionRow(parent, yOffset)
     row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, yOffset)
 
     local available = Adapter:IsAvailable()
-    local sourceName = Adapter:GetSourceName()
 
-    local icon = row:CreateTexture(nil, "ARTWORK")
+    -- Circle icon (H for Harrek)
+    local icon = CreateFrame("Frame", nil, row, "BackdropTemplate")
     icon:SetPoint("LEFT", 4, 0)
-    icon:SetSize(14, 14)
+    icon:SetSize(16, 16)
+    ApplyBackdrop(icon, {r = 0.15, g = 0.15, b = 0.15, a = 1}, {r = 0.35, g = 0.35, b = 0.35, a = 1})
 
-    local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", icon, "RIGHT", 4, 0)
+    local iconLetter = icon:CreateFontString(nil, "OVERLAY")
+    iconLetter:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    iconLetter:SetPoint("CENTER", 0, 0)
+    iconLetter:SetText("H")
 
     if available then
-        icon:SetColorTexture(0.3, 0.8, 0.3, 1)
-        label:SetText("Data source: " .. (sourceName or "Unknown"))
-        label:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+        iconLetter:SetTextColor(0.3, 0.8, 0.3)
+        local poweredLabel = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        poweredLabel:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+        poweredLabel:SetText("Powered by")
+        poweredLabel:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+
+        local nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        nameLabel:SetPoint("LEFT", poweredLabel, "RIGHT", 4, 0)
+        nameLabel:SetText("Advanced Raid Frames")
+        local tc = GetThemeColor()
+        nameLabel:SetTextColor(tc.r, tc.g, tc.b)
     else
-        icon:SetColorTexture(0.8, 0.3, 0.3, 1)
+        iconLetter:SetTextColor(0.8, 0.3, 0.3)
+        local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("LEFT", icon, "RIGHT", 6, 0)
         label:SetText("Harrek's Advanced Raid Frames not detected")
         label:SetTextColor(0.8, 0.6, 0.3, 1)
     end
@@ -1297,7 +1407,8 @@ local function CreateStripHeader(parent, text, accentColor)
     header:SetHeight(18)
     ApplyBackdrop(header, C_BACKGROUND, {r = C_BORDER.r, g = C_BORDER.g, b = C_BORDER.b, a = 0.5})
 
-    local label = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local label = header:CreateFontString(nil, "OVERLAY")
+    label:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
     label:SetPoint("LEFT", 10, 0)
     label:SetText(text)
     if accentColor then
@@ -1305,6 +1416,13 @@ local function CreateStripHeader(parent, text, accentColor)
     else
         label:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
     end
+
+    -- Right-side count
+    local countLabel = header:CreateFontString(nil, "OVERLAY")
+    countLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+    countLabel:SetPoint("RIGHT", -10, 0)
+    countLabel:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+    header.countLabel = countLabel
 
     header.label = label
     return header
@@ -1491,11 +1609,39 @@ local function CreateFramePreview(parent, yOffset, rightPanelRef)
         anchorDots[anchorName] = dotFrame
     end
 
-    -- Instructions row
-    local instrText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    instrText:SetPoint("BOTTOM", container, "BOTTOM", 0, 4)
-    instrText:SetText("Click an anchor to place | Right-click to remove")
-    instrText:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b, 0.6)
+    -- Instructions with keyboard badge styling
+    local instrRows = {
+        { key = "Click",       desc = "an aura tile to configure its display settings" },
+        { key = "Drag",        desc = "an aura tile onto the frame to place at a specific anchor" },
+        { key = "Right-click", desc = "a placed indicator to remove it from the frame" },
+    }
+
+    local instrCount = #instrRows
+    for i, row in ipairs(instrRows) do
+        local rowBottomOffset = 4 + (instrCount - i) * 14
+
+        -- Key badge background
+        local badge = CreateFrame("Frame", nil, container, "BackdropTemplate")
+        badge:SetHeight(13)
+        badge:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 8, rowBottomOffset)
+        ApplyBackdrop(badge, C_ELEMENT, C_BORDER)
+
+        local keyText = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        keyText:SetPoint("CENTER", 0, 0)
+        keyText:SetText(row.key)
+        keyText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+        local keyWidth = keyText:GetStringWidth()
+        badge:SetWidth(max(keyWidth + 10, 20))
+
+        -- Description text
+        local descText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        descText:SetPoint("LEFT", badge, "RIGHT", 5, 0)
+        descText:SetText(row.desc)
+        descText:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b, 0.7)
+    end
+
+    -- Adjust container height to accommodate instructions
+    container:SetHeight(max(FRAME_H + 60 + #instrRows * 14, 130 + #instrRows * 14))
 
     return container
 end
@@ -1779,7 +1925,114 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
     rightPanel.selSub:SetPoint("TOPLEFT", rightPanel.selName, "BOTTOMLEFT", 0, -1)
     rightPanel.selSub:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
 
-    -- Scroll frame below header
+    -- Copy-from row (visible only in per-aura view)
+    rightPanel.copyRow = CreateFrame("Frame", nil, rightPanel, "BackdropTemplate")
+    rightPanel.copyRow:SetHeight(26)
+    rightPanel.copyRow:SetPoint("TOPLEFT", rightPanel.selHeader, "BOTTOMLEFT", 0, 0)
+    rightPanel.copyRow:SetPoint("TOPRIGHT", rightPanel.selHeader, "BOTTOMRIGHT", 0, 0)
+    ApplyBackdrop(rightPanel.copyRow, {r = 0.11, g = 0.11, b = 0.13, a = 1}, {r = C_BORDER.r, g = C_BORDER.g, b = C_BORDER.b, a = 0.5})
+    rightPanel.copyRow:Hide()
+
+    local copyLabel = rightPanel.copyRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    copyLabel:SetPoint("LEFT", 10, 0)
+    copyLabel:SetText("Copy from:")
+    copyLabel:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+
+    -- Dropdown (simple button that opens a menu)
+    rightPanel.copyDropdown = CreateFrame("Frame", nil, rightPanel.copyRow, "BackdropTemplate")
+    rightPanel.copyDropdown:SetHeight(18)
+    rightPanel.copyDropdown:SetPoint("LEFT", copyLabel, "RIGHT", 6, 0)
+    rightPanel.copyDropdown:SetPoint("RIGHT", rightPanel.copyRow, "RIGHT", -60, 0)
+    ApplyBackdrop(rightPanel.copyDropdown, C_ELEMENT, C_BORDER)
+
+    rightPanel.copyDropdownText = rightPanel.copyDropdown:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    rightPanel.copyDropdownText:SetPoint("LEFT", 5, 0)
+    rightPanel.copyDropdownText:SetPoint("RIGHT", -14, 0)
+    rightPanel.copyDropdownText:SetJustifyH("LEFT")
+    rightPanel.copyDropdownText:SetText("Select aura...")
+    rightPanel.copyDropdownText:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+
+    local copyArrow = rightPanel.copyDropdown:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    copyArrow:SetPoint("RIGHT", -3, 0)
+    copyArrow:SetText("\226\150\188") -- small down triangle
+    copyArrow:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b)
+
+    -- Copy button
+    rightPanel.copyBtn = CreateFrame("Button", nil, rightPanel.copyRow, "BackdropTemplate")
+    rightPanel.copyBtn:SetSize(46, 18)
+    rightPanel.copyBtn:SetPoint("RIGHT", rightPanel.copyRow, "RIGHT", -8, 0)
+    local tc = GetThemeColor()
+    ApplyBackdrop(rightPanel.copyBtn, C_ELEMENT, {r = tc.r, g = tc.g, b = tc.b, a = 0.8})
+
+    local copyBtnText = rightPanel.copyBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    copyBtnText:SetPoint("CENTER", 0, 0)
+    copyBtnText:SetText("Copy")
+    copyBtnText:SetTextColor(tc.r, tc.g, tc.b)
+
+    rightPanel.copyBtn:SetScript("OnEnter", function(self)
+        local c = GetThemeColor()
+        self:SetBackdropColor(c.r, c.g, c.b, 0.3)
+    end)
+    rightPanel.copyBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(C_ELEMENT.r, C_ELEMENT.g, C_ELEMENT.b, 1)
+    end)
+
+    -- State for copy-from selection
+    rightPanel.copySourceAura = nil
+
+    -- Dropdown click: show menu of other auras for the current spec
+    local copyDropdownBtn = CreateFrame("Button", nil, rightPanel.copyDropdown)
+    copyDropdownBtn:SetAllPoints()
+    copyDropdownBtn:SetScript("OnClick", function(self)
+        local spec = ResolveSpec()
+        if not spec then return end
+        local auraList = Adapter:GetTrackableAuras(spec)
+        if not auraList then return end
+
+        local menuItems = {}
+        for _, info in ipairs(auraList) do
+            if info.name ~= selectedAura then
+                tinsert(menuItems, {
+                    text = info.display,
+                    func = function()
+                        rightPanel.copySourceAura = info.name
+                        rightPanel.copyDropdownText:SetText(info.display)
+                        rightPanel.copyDropdownText:SetTextColor(C_TEXT.r, C_TEXT.g, C_TEXT.b)
+                    end,
+                })
+            end
+        end
+
+        -- Simple dropdown menu using WoW's EasyMenu
+        local menuFrame = CreateFrame("Frame", "DFAuraDesignerCopyMenu", UIParent, "UIDropDownMenuTemplate")
+        EasyMenu(menuItems, menuFrame, self, 0, 0, "MENU")
+    end)
+
+    -- Copy button click: copy all settings from source to current aura
+    rightPanel.copyBtn:SetScript("OnClick", function()
+        if not rightPanel.copySourceAura or not selectedAura then return end
+        local adDB = GetAuraDesignerDB()
+        local sourceCfg = adDB.auras[rightPanel.copySourceAura]
+        if not sourceCfg then return end
+
+        -- Deep copy
+        local function deepCopy(tbl)
+            local copy = {}
+            for k, v in pairs(tbl) do
+                if type(v) == "table" then
+                    copy[k] = deepCopy(v)
+                else
+                    copy[k] = v
+                end
+            end
+            return copy
+        end
+
+        adDB.auras[selectedAura] = deepCopy(sourceCfg)
+        DF:AuraDesigner_RefreshPage()
+    end)
+
+    -- Scroll frame below header (and copy row when visible)
     rightScrollFrame = CreateFrame("ScrollFrame", nil, rightPanel, "UIPanelScrollFrameTemplate")
     rightScrollFrame:SetPoint("TOPLEFT", 0, -40)
     rightScrollFrame:SetPoint("BOTTOMRIGHT", -22, 0)
@@ -1807,9 +2060,9 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
     ApplyBackdrop(tileWrap, C_PANEL, C_BORDER)
 
     -- Header bar
-    local tileHeader = CreateStripHeader(tileWrap, "TRACKABLE AURAS")
-    tileHeader:SetPoint("TOPLEFT", 0, 0)
-    tileHeader:SetPoint("TOPRIGHT", 0, 0)
+    tileStripHeader = CreateStripHeader(tileWrap, "TRACKABLE AURAS")
+    tileStripHeader:SetPoint("TOPLEFT", 0, 0)
+    tileStripHeader:SetPoint("TOPRIGHT", 0, 0)
 
     -- Scroll area below header
     tileStrip = CreateFrame("ScrollFrame", nil, tileWrap)
