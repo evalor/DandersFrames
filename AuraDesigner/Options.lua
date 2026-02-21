@@ -316,6 +316,8 @@ local function CreateDragGhost()
     return dragGhost
 end
 
+local EndDrag  -- forward declaration (defined below StartDrag)
+
 local function StartDrag(auraName, auraInfo, specKey)
     if dragState.isDragging then return end
 
@@ -372,7 +374,7 @@ local function StartDrag(auraName, auraInfo, specKey)
     dragUpdateFrame:Show()
 end
 
-local function EndDrag()
+EndDrag = function()
     if not dragState.isDragging then return end
 
     local auraName = dragState.auraName
@@ -413,9 +415,6 @@ local function EndDrag()
     -- Refresh everything
     DF:AuraDesigner_RefreshPage()
 end
-
--- Forward-declare so StartDrag/EndDrag can reference each other
--- (EndDrag is local, defined above; we just need it visible in the OnUpdate closure)
 
 -- ============================================================
 -- PLACED INDICATORS ON PREVIEW
