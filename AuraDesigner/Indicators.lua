@@ -987,32 +987,37 @@ local function CreateADBar(frame, auraName)
         local pct = min(1, remaining / self.dfAD_duration)
         self:SetValue(pct)
 
-        -- Color the bar fill by remaining time (green → yellow → orange → red)
+        -- Determine bar fill color each tick
+        -- Priority: expiring color > color-by-time > static fill
+        local barR = self.dfAD_fillR or 1
+        local barG = self.dfAD_fillG or 1
+        local barB = self.dfAD_fillB or 1
+
         if self.dfAD_barColorByTime then
-            local r, g, b
             if pct < 0.3 then
                 local t = pct / 0.3
-                r, g, b = 1, 0.5 * t, 0
+                barR, barG, barB = 1, 0.5 * t, 0
             elseif pct < 0.5 then
                 local t = (pct - 0.3) / 0.2
-                r, g, b = 1, 0.5 + 0.5 * t, 0
+                barR, barG, barB = 1, 0.5 + 0.5 * t, 0
             else
                 local t = (pct - 0.5) / 0.5
-                r, g, b = 1 - t, 1, 0
+                barR, barG, barB = 1 - t, 1, 0
             end
-            self:SetStatusBarColor(r, g, b, 1)
         end
 
-        -- Expiring color override: when remaining % drops below threshold %, use the expiring color
+        -- Expiring color override takes highest priority
         if self.dfAD_expiringEnabled and self.dfAD_expiringThreshold then
             local thresholdPct = self.dfAD_expiringThreshold / 100
             if pct <= thresholdPct and pct > 0 then
                 local ec = self.dfAD_expiringColor
                 if ec then
-                    self:SetStatusBarColor(ec.r, ec.g, ec.b, 1)
+                    barR, barG, barB = ec.r or 1, ec.g or 0.2, ec.b or 0.2
                 end
             end
         end
+
+        self:SetStatusBarColor(barR, barG, barB, 1)
 
         -- Update spark position
         if self.spark and self.spark:IsShown() then
@@ -1100,11 +1105,9 @@ function Indicators:ApplyBar(frame, config, auraData, defaults, auraName)
     -- COLORS
     -- ========================================
     local fillColor = config.fillColor
-    if fillColor then
-        bar:SetStatusBarColor(fillColor[1] or fillColor.r or 1, fillColor[2] or fillColor.g or 1, fillColor[3] or fillColor.b or 1, 1)
-    else
-        bar:SetStatusBarColor(1, 1, 1, 1)
-    end
+    local fillR = fillColor and (fillColor[1] or fillColor.r) or 1
+    local fillG = fillColor and (fillColor[2] or fillColor.g) or 1
+    local fillB = fillColor and (fillColor[3] or fillColor.b) or 1
 
     local bgColor = config.bgColor
     if bgColor and bar.bg then
@@ -1122,6 +1125,14 @@ function Indicators:ApplyBar(frame, config, auraData, defaults, auraName)
     bar.dfAD_expiringEnabled = expiringEnabled
     bar.dfAD_expiringThreshold = config.expiringThreshold or 30
     bar.dfAD_expiringColor = config.expiringColor
+
+    -- Store base fill color for OnUpdate fallback
+    bar.dfAD_fillR = fillR
+    bar.dfAD_fillG = fillG
+    bar.dfAD_fillB = fillB
+
+    -- Set initial bar color (applying color-by-time / expiring right away)
+    bar:SetStatusBarColor(fillR, fillG, fillB, 1)
 
     -- ========================================
     -- BORDER
