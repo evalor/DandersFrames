@@ -46,8 +46,10 @@ local activeProvider = nil  -- Set during initialization
 
 -- ============================================================
 -- HARREK'S PROVIDER
--- Uses AdvancedRaidFramesAPI for fast aura presence checks,
--- then enriches with C_UnitAuras for duration/stacks/icon.
+-- Uses AdvancedRaidFramesAPI which handles all aura identification
+-- and tracking internally. We just read its data directly.
+-- HARF returns C_UnitAuras.GetAuraDataByAuraInstanceID() results
+-- which contain all display fields (may be secret — that's fine).
 -- ============================================================
 
 local HarrekProvider = {}
@@ -71,68 +73,20 @@ function HarrekProvider:GetUnitAuras(unit, spec)
     for _, auraInfo in ipairs(DF.AuraDesigner.TrackableAuras[spec] or {}) do
         local auraName = auraInfo.name
         -- HARF tracks this aura — check if it's active on the unit
+        -- API.GetUnitAura returns C_UnitAuras.GetAuraDataByAuraInstanceID() data
+        -- which already has all fields (icon, duration, etc. may be secret — that's OK,
+        -- Blizzard display APIs like SetTexture, SetCooldownFromExpirationTime accept them)
         local harfData = API.GetUnitAura(unit, auraName)
         if harfData then
-            -- Aura is active — enrich with C_UnitAuras data
-            local spellId = spellIDs[auraName]
-            local entry = {
-                spellId = spellId,
-                icon = nil,
-                duration = 0,
-                expirationTime = 0,
-                stacks = 0,
-                caster = nil,
+            result[auraName] = {
+                spellId = spellIDs[auraName] or 0,    -- our known non-secret ID
+                icon = harfData.icon,                   -- may be secret; OK for SetTexture
+                duration = harfData.duration,            -- may be secret; OK for SetCooldownFromExpirationTime
+                expirationTime = harfData.expirationTime, -- may be secret
+                stacks = harfData.applications,          -- may be secret; OK for GetAuraApplicationDisplayCount
+                caster = harfData.sourceUnit,
+                auraInstanceID = harfData.auraInstanceID, -- always non-secret
             }
-            -- Enrich from Blizzard API
-            -- First try BlizzardAuraCache (secret-safe: uses auraInstanceIDs)
-            local enriched = false
-            local blizzCache = DF.BlizzardAuraCache and DF.BlizzardAuraCache[unit]
-            if blizzCache and spellId then
-                local sources = { blizzCache.buffs, blizzCache.debuffs }
-                for _, sourceSet in ipairs(sources) do
-                    if sourceSet and not enriched then
-                        for auraInstanceID in pairs(sourceSet) do
-                            if not enriched then
-                                local ad = GetAuraDataByAuraInstanceID and GetAuraDataByAuraInstanceID(unit, auraInstanceID)
-                                if ad then
-                                    local sid = ad.spellId
-                                    if sid and not issecretvalue(sid) and sid == spellId then
-                                        entry.icon = ad.icon
-                                        entry.duration = ad.duration
-                                        entry.expirationTime = ad.expirationTime
-                                        entry.stacks = ad.applications
-                                        entry.caster = ad.sourceUnit
-                                        entry.auraInstanceID = auraInstanceID
-                                        enriched = true
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            -- Fallback: try ForEachAura with pcall protection (may fail with secret values in combat)
-            if not enriched and spellId then
-                pcall(function()
-                    AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(auraData)
-                        if auraData.spellId == spellId then
-                            entry.icon = auraData.icon
-                            entry.duration = auraData.duration
-                            entry.expirationTime = auraData.expirationTime
-                            entry.stacks = auraData.applications
-                            entry.caster = auraData.sourceUnit
-                            entry.auraInstanceID = auraData.auraInstanceID
-                            enriched = true
-                            return true
-                        end
-                    end)
-                end)
-            end
-            -- Fallback icon from C_Spell if enrichment didn't find it
-            if not entry.icon and spellId and C_Spell and C_Spell.GetSpellTexture then
-                entry.icon = C_Spell.GetSpellTexture(spellId)
-            end
-            result[auraName] = entry
         end
     end
 
