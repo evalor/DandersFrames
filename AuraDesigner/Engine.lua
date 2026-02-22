@@ -15,6 +15,10 @@ local sort = table.sort
 local wipe = table.wipe
 local GetTime = GetTime
 
+-- Debug throttle: only log once per N seconds to avoid spam
+local debugLastLog = 0
+local DEBUG_INTERVAL = 3  -- seconds between debug dumps
+
 DF.AuraDesigner = DF.AuraDesigner or {}
 
 local Engine = {}
@@ -92,8 +96,45 @@ function Engine:UpdateFrame(frame)
         return
     end
 
+    -- Debug: throttled diagnostic dump
+    local now = GetTime()
+    local shouldLog = (now - debugLastLog) >= DEBUG_INTERVAL
+
     -- Query adapter for active auras on this unit
     local activeAuras = Adapter:GetUnitAuras(unit, spec)
+
+    if shouldLog then
+        debugLastLog = now
+        -- Count active auras from adapter
+        local activeCount = 0
+        for k in pairs(activeAuras) do activeCount = activeCount + 1 end
+        -- Count configured auras
+        local configCount = 0
+        local configTypes = 0
+        if adDB.auras then
+            for auraName, auraCfg in pairs(adDB.auras) do
+                configCount = configCount + 1
+                for _, typeDef in ipairs(INDICATOR_TYPES) do
+                    if auraCfg[typeDef.key] then configTypes = configTypes + 1 end
+                end
+            end
+        end
+        DF:Debug("AD Engine:", unit, "| spec:", spec, "| active auras:", activeCount, "| configured:", configCount, "| indicator types:", configTypes)
+        -- Log active aura names
+        for auraName in pairs(activeAuras) do
+            DF:Debug("  active:", auraName)
+        end
+        -- Log configured aura names and their types
+        if adDB.auras then
+            for auraName, auraCfg in pairs(adDB.auras) do
+                local types = {}
+                for _, typeDef in ipairs(INDICATOR_TYPES) do
+                    if auraCfg[typeDef.key] then types[#types+1] = typeDef.key end
+                end
+                DF:Debug("  config:", auraName, "→", table.concat(types, ", "))
+            end
+        end
+    end
 
     -- Gather configured auras that are currently active
     wipe(activeIndicators)
@@ -123,6 +164,10 @@ function Engine:UpdateFrame(frame)
     -- Sort by priority (higher priority wins frame-level conflicts)
     if #activeIndicators > 1 then
         sort(activeIndicators, prioritySort)
+    end
+
+    if shouldLog and #activeIndicators > 0 then
+        DF:Debug("AD Engine: dispatching", #activeIndicators, "indicators for", unit)
     end
 
     -- Dispatch to indicator renderers
