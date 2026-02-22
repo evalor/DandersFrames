@@ -659,7 +659,8 @@ local function RefreshPlacedIndicators()
                         local mockAuraData = {
                             spellId = info.spellIds and info.spellIds[1] or 0,
                             icon = GetAuraIcon(spec, auraName),
-                            duration = 0,
+                            duration = 15,
+                            expirationTime = GetTime() + 10,
                             stacks = 3,
                         }
                         Indicators:ApplySquare(mockFrame, typeCfg, mockAuraData, adDB.defaults, auraName)
@@ -835,7 +836,7 @@ RefreshPreviewLightweight = function()
             local auraCfg = adDB.auras and adDB.auras[auraName]
             if auraCfg and auraCfg.square then
                 local mockAuraData = {
-                    spellId = 0, icon = nil, duration = 0, stacks = 3,
+                    spellId = 0, icon = nil, duration = 15, expirationTime = GetTime() + 10, stacks = 3,
                 }
                 Indicators:ApplySquare(mockFrame, auraCfg.square, mockAuraData, adDB.defaults, auraName)
             end
