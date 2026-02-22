@@ -211,15 +211,61 @@ end
 -- Called from proxy __newindex so every setting change updates the preview in real-time
 local RefreshPreviewLightweight
 
+-- Default values per type key, used as fallback when a saved config is missing new keys
+local TYPE_DEFAULTS = {
+    icon = {
+        anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
+        size = 24, scale = 1.0, alpha = 1.0,
+        borderEnabled = true, borderThickness = 1, borderInset = 1,
+        hideSwipe = false,
+        showDuration = true, durationFont = "Fonts\\FRIZQT__.TTF",
+        durationScale = 1.0, durationOutline = "OUTLINE",
+        durationAnchor = "CENTER", durationX = 0, durationY = 0,
+        durationColorByTime = true,
+        showStacks = true, stackMinimum = 2,
+        stackFont = "Fonts\\FRIZQT__.TTF", stackScale = 1.0,
+        stackOutline = "OUTLINE", stackAnchor = "BOTTOMRIGHT",
+        stackX = 0, stackY = 0,
+    },
+    square = {
+        anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
+        size = 10, scale = 1.0, alpha = 1.0,
+        color = {r = 1, g = 1, b = 1, a = 1},
+        showBorder = true, borderThickness = 1, borderInset = 1,
+        hideSwipe = false,
+        showDuration = true, durationFont = "Fonts\\FRIZQT__.TTF",
+        durationScale = 1.0, durationOutline = "OUTLINE",
+        durationAnchor = "CENTER", durationX = 0, durationY = 0,
+        durationColorByTime = true,
+        showStacks = true, stackMinimum = 2,
+        stackFont = "Fonts\\FRIZQT__.TTF", stackScale = 1.0,
+        stackOutline = "OUTLINE", stackAnchor = "BOTTOMRIGHT",
+        stackX = 0, stackY = 0,
+    },
+    bar = {
+        anchor = "BOTTOM", offsetX = 0, offsetY = 0,
+        orientation = "HORIZONTAL", width = 60, height = 6,
+        matchFrameWidth = true, matchFrameHeight = false,
+        fillColor = {r = 1, g = 1, b = 1, a = 1},
+        bgColor = {r = 0, g = 0, b = 0, a = 0.5},
+        showBorder = true, borderThickness = 1,
+        borderColor = {r = 0, g = 0, b = 0, a = 1}, alpha = 1.0,
+    },
+}
+
 -- Create a proxy table that maps flat key access to nested aura config
 local function CreateProxy(auraName, typeKey)
+    local defaults = TYPE_DEFAULTS[typeKey]
     return setmetatable({}, {
         __index = function(_, k)
             local adDB = GetAuraDesignerDB()
             local auraCfg = adDB.auras[auraName]
             if auraCfg and auraCfg[typeKey] then
-                return auraCfg[typeKey][k]
+                local val = auraCfg[typeKey][k]
+                if val ~= nil then return val end
             end
+            -- Fall back to defaults for missing keys
+            if defaults then return defaults[k] end
             return nil
         end,
         __newindex = function(_, k, v)
