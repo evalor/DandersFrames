@@ -129,27 +129,45 @@ local function EnsureTypeConfig(auraName, typeKey)
         -- Create default config for each type
         if typeKey == "icon" then
             auraCfg[typeKey] = {
+                -- Placement
                 anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
-                growth = "RIGHT", spacing = 2, size = nil, scale = nil,
-                alpha = 1.0, borderEnabled = nil, borderThickness = nil,
-                hideSwipe = false, stackFont = nil, stackScale = nil,
-                stackMinimum = nil, showDuration = nil, durationScale = nil,
-                durationColorByTime = nil,
+                -- Size & appearance
+                size = 24, scale = 1.0, alpha = 1.0,
+                -- Border
+                borderEnabled = true, borderThickness = 1, borderInset = 1,
+                hideSwipe = false,
+                -- Duration text
+                showDuration = true, durationFont = "Fonts\\FRIZQT__.TTF",
+                durationScale = 1.0, durationOutline = "OUTLINE",
+                durationAnchor = "CENTER", durationX = 0, durationY = 0,
+                durationColorByTime = true,
+                -- Stack count
+                showStacks = true, stackMinimum = 2,
+                stackFont = "Fonts\\FRIZQT__.TTF", stackScale = 1.0,
+                stackOutline = "OUTLINE", stackAnchor = "BOTTOMRIGHT",
+                stackX = 0, stackY = 0,
             }
         elseif typeKey == "square" then
             auraCfg[typeKey] = {
+                -- Placement
                 anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
-                growth = "RIGHT", spacing = 2, size = 10,
-                color = {r = 1, g = 1, b = 1, a = 1}, alpha = 1.0,
-                borderEnabled = true, borderThickness = 1,
+                -- Appearance
+                size = 10, alpha = 1.0,
+                color = {r = 1, g = 1, b = 1, a = 1},
+                showBorder = true, borderThickness = 1,
+                -- Duration & stacks
                 showDuration = false, showStacks = false,
-                stackMinimum = 2, stackScale = 1.0, stackFont = nil,
+                stackMinimum = 2, stackScale = 1.0,
+                stackFont = "Fonts\\FRIZQT__.TTF",
             }
         elseif typeKey == "bar" then
             auraCfg[typeKey] = {
+                -- Placement
                 anchor = "BOTTOM", offsetX = 0, offsetY = 0,
-                orientation = "HORIZONTAL", width = 0, height = 4,
+                -- Size & orientation
+                orientation = "HORIZONTAL", width = 60, height = 6,
                 matchFrameWidth = true, matchFrameHeight = false,
+                -- Colors & border
                 fillColor = {r = 1, g = 1, b = 1, a = 1},
                 bgColor = {r = 0, g = 0, b = 0, a = 0.5},
                 showBorder = true, borderThickness = 1,
@@ -1158,7 +1176,7 @@ local function BuildTypeContent(parent, typeKey, auraName, width)
         AddWidget(GUI:CreateSlider(parent, "Size", 4, 32, 1, proxy, "size"), 54)
         AddWidget(GUI:CreateColorPicker(parent, "Color", proxy, "color", true), 28)
         AddWidget(GUI:CreateSlider(parent, "Alpha", 0, 1, 0.05, proxy, "alpha"), 54)
-        AddWidget(GUI:CreateCheckbox(parent, "Show Border", proxy, "borderEnabled"), 28)
+        AddWidget(GUI:CreateCheckbox(parent, "Show Border", proxy, "showBorder"), 28)
         AddWidget(GUI:CreateSlider(parent, "Border Thickness", 1, 5, 1, proxy, "borderThickness"), 54)
         AddDivider()
         -- Duration & stacks
