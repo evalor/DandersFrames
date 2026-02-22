@@ -3,11 +3,29 @@ local addonName, DF = ...
 -- ============================================================
 -- AURA DESIGNER - DATA SOURCE ADAPTER
 -- Abstraction layer between the Aura Designer and the aura data
--- source (currently HARF). This is the ONLY file that knows about
--- the external data provider.
+-- source. This is the ONLY file that knows about the external
+-- data provider (currently Harrek's Advanced Raid Frames).
+--
+-- Any future provider must implement:
+--   :IsAvailable()              → boolean
+--   :GetSourceName()            → string
+--   :GetUnitAuras(unit)         → { [auraName] = normalizedData }
+--   :RegisterCallback(owner, cb)
+--   :UnregisterCallback(owner)
+--
+-- Normalized aura data format:
+--   {
+--     spellId        = number,   -- spell ID
+--     icon           = number,   -- texture ID
+--     duration       = number,   -- total duration (0 = permanent)
+--     expirationTime = number,   -- GetTime()-based expiry
+--     stacks         = number,   -- stack/application count
+--     caster         = string,   -- who applied it
+--   }
 -- ============================================================
 
 local pairs, ipairs, type = pairs, ipairs, type
+local GetTime = GetTime
 
 DF.AuraDesigner = DF.AuraDesigner or {}
 
@@ -15,24 +33,210 @@ local AuraAdapter = {}
 DF.AuraDesigner.Adapter = AuraAdapter
 
 -- ============================================================
--- DATA SOURCE DETECTION
+-- PROVIDER ABSTRACTION
+-- The adapter auto-selects the best available provider:
+--   1. Harrek's Advanced Raid Frames (if installed)
+--   2. Fallback: direct C_UnitAuras scanning
 -- ============================================================
 
--- Returns true if a compatible data source (HARF) is available
-function AuraAdapter:IsAvailable()
+local activeProvider = nil  -- Set during initialization
+
+-- ============================================================
+-- HARREK'S PROVIDER
+-- Uses AdvancedRaidFramesAPI for fast aura presence checks,
+-- then enriches with C_UnitAuras for duration/stacks/icon.
+-- ============================================================
+
+local HarrekProvider = {}
+
+function HarrekProvider:IsAvailable()
     return AdvancedRaidFramesAPI ~= nil
 end
 
--- Returns a display name for the current data source (shown in the UI)
-function AuraAdapter:GetSourceName()
-    if self:IsAvailable() then
-        return "Harrek's Advanced Raid Frames"
+function HarrekProvider:GetSourceName()
+    return "Harrek's Advanced Raid Frames"
+end
+
+function HarrekProvider:GetUnitAuras(unit, spec)
+    local API = AdvancedRaidFramesAPI
+    if not API then return {} end
+
+    local spellIDs = DF.AuraDesigner.SpellIDs[spec]
+    if not spellIDs then return {} end
+
+    local result = {}
+    for _, auraInfo in ipairs(DF.AuraDesigner.TrackableAuras[spec] or {}) do
+        local auraName = auraInfo.name
+        -- HARF tracks this aura — check if it's active on the unit
+        local harfData = API.GetUnitAura(unit, auraName)
+        if harfData then
+            -- Aura is active — enrich with C_UnitAuras data
+            local spellId = spellIDs[auraName]
+            local entry = {
+                spellId = spellId,
+                icon = nil,
+                duration = 0,
+                expirationTime = 0,
+                stacks = 0,
+                caster = nil,
+            }
+            -- Enrich from Blizzard API using spellId
+            if spellId then
+                AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(auraData)
+                    if auraData.spellId == spellId then
+                        entry.icon = auraData.icon
+                        entry.duration = auraData.duration or 0
+                        entry.expirationTime = auraData.expirationTime or 0
+                        entry.stacks = auraData.applications or 0
+                        entry.caster = auraData.sourceUnit
+                        return true  -- stop iteration
+                    end
+                end)
+                -- Fallback icon from C_Spell if ForEachAura didn't find it
+                if not entry.icon and C_Spell and C_Spell.GetSpellTexture then
+                    entry.icon = C_Spell.GetSpellTexture(spellId)
+                end
+            end
+            result[auraName] = entry
+        end
     end
-    return nil
+
+    return result
+end
+
+-- Callback registry for Harrek provider
+local harrekCallbacks = {}
+
+function HarrekProvider:RegisterCallback(owner, callback)
+    harrekCallbacks[owner] = callback
+    -- Wire to HARF's callback system
+    if AdvancedRaidFramesAPI and AdvancedRaidFramesAPI.RegisterCallback then
+        AdvancedRaidFramesAPI.RegisterCallback(owner, "HARF_UNIT_AURA", function(_, unit, auraData)
+            if callback then callback(unit) end
+        end)
+    end
+end
+
+function HarrekProvider:UnregisterCallback(owner)
+    harrekCallbacks[owner] = nil
+    if AdvancedRaidFramesAPI and AdvancedRaidFramesAPI.UnregisterCallback then
+        AdvancedRaidFramesAPI.UnregisterCallback(owner, "HARF_UNIT_AURA")
+    end
 end
 
 -- ============================================================
--- SPEC / AURA QUERIES (stub — uses local data)
+-- FALLBACK PROVIDER
+-- Scans unit buffs directly via C_UnitAuras when HARF is not
+-- installed. Slower but fully functional.
+-- ============================================================
+
+local FallbackProvider = {}
+
+function FallbackProvider:IsAvailable()
+    return true  -- Always available
+end
+
+function FallbackProvider:GetSourceName()
+    return "Built-in (direct scan)"
+end
+
+-- Build a reverse lookup: spellId → auraName for fast matching
+local spellIdLookup = {}  -- { [spec] = { [spellId] = auraName } }
+
+local function GetSpellIdLookup(spec)
+    if spellIdLookup[spec] then return spellIdLookup[spec] end
+    local lookup = {}
+    local ids = DF.AuraDesigner.SpellIDs[spec]
+    if ids then
+        for auraName, spellId in pairs(ids) do
+            lookup[spellId] = auraName
+        end
+    end
+    spellIdLookup[spec] = lookup
+    return lookup
+end
+
+function FallbackProvider:GetUnitAuras(unit, spec)
+    local lookup = GetSpellIdLookup(spec)
+    if not lookup or not next(lookup) then return {} end
+
+    local result = {}
+    AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(auraData)
+        local auraName = lookup[auraData.spellId]
+        if auraName then
+            result[auraName] = {
+                spellId = auraData.spellId,
+                icon = auraData.icon,
+                duration = auraData.duration or 0,
+                expirationTime = auraData.expirationTime or 0,
+                stacks = auraData.applications or 0,
+                caster = auraData.sourceUnit,
+            }
+        end
+    end)
+
+    return result
+end
+
+-- Fallback uses a simple event frame for UNIT_AURA
+local fallbackCallbacks = {}
+local fallbackEventFrame
+
+function FallbackProvider:RegisterCallback(owner, callback)
+    fallbackCallbacks[owner] = callback
+    if not fallbackEventFrame then
+        fallbackEventFrame = CreateFrame("Frame")
+        fallbackEventFrame:RegisterEvent("UNIT_AURA")
+        fallbackEventFrame:SetScript("OnEvent", function(_, _, unit)
+            for _, cb in pairs(fallbackCallbacks) do
+                cb(unit)
+            end
+        end)
+    end
+end
+
+function FallbackProvider:UnregisterCallback(owner)
+    fallbackCallbacks[owner] = nil
+    -- Clean up event frame if no callbacks remain
+    if fallbackEventFrame and not next(fallbackCallbacks) then
+        fallbackEventFrame:UnregisterAllEvents()
+        fallbackEventFrame = nil
+    end
+end
+
+-- ============================================================
+-- PROVIDER SELECTION
+-- ============================================================
+
+local function SelectProvider()
+    if HarrekProvider:IsAvailable() then
+        activeProvider = HarrekProvider
+    else
+        activeProvider = FallbackProvider
+    end
+end
+
+-- ============================================================
+-- PUBLIC ADAPTER API
+-- These methods delegate to the active provider.
+-- ============================================================
+
+-- Returns true if a data source is available
+function AuraAdapter:IsAvailable()
+    if not activeProvider then SelectProvider() end
+    return activeProvider:IsAvailable()
+end
+
+-- Returns a display name for the current data source
+function AuraAdapter:GetSourceName()
+    if not activeProvider then SelectProvider() end
+    return activeProvider:GetSourceName()
+end
+
+-- ============================================================
+-- SPEC / AURA QUERIES (uses local Config data)
+-- These are provider-independent — always sourced from
+-- DF.AuraDesigner tables in Config.lua.
 -- ============================================================
 
 -- Returns a list of supported spec keys
@@ -60,7 +264,7 @@ end
 -- PLAYER SPEC DETECTION
 -- ============================================================
 
--- Returns the spec key for the current player, or nil if not a supported spec
+-- Returns the spec key for the current player, or nil if not supported
 function AuraAdapter:GetPlayerSpec()
     local _, englishClass = UnitClass("player")
     local specIndex = GetSpecialization and GetSpecialization() or nil
@@ -71,29 +275,42 @@ function AuraAdapter:GetPlayerSpec()
 end
 
 -- ============================================================
--- RUNTIME DATA (stubs — will be implemented with real HARF wiring)
+-- RUNTIME DATA
+-- Delegates to the active provider for live aura queries.
 -- ============================================================
 
--- Returns a table of currently active auras for a unit
--- Format: { [auraName] = auraData, ... }
-function AuraAdapter:GetUnitAuras(unit)
-    -- Stub: no live data yet
-    return {}
+-- Returns a table of currently active tracked auras for a unit
+-- Format: { [auraName] = { spellId, icon, duration, expirationTime, stacks, caster } }
+function AuraAdapter:GetUnitAuras(unit, spec)
+    if not activeProvider then SelectProvider() end
+    if not spec then spec = self:GetPlayerSpec() end
+    if not spec then return {} end
+    return activeProvider:GetUnitAuras(unit, spec)
 end
 
 -- Registers a callback for when a unit's auras change
+-- callback(unit) is called whenever unit auras may have changed
 function AuraAdapter:RegisterCallback(owner, callback)
-    -- Stub: will wire to HARF callbacks
+    if not activeProvider then SelectProvider() end
+    activeProvider:RegisterCallback(owner, callback)
 end
 
 function AuraAdapter:UnregisterCallback(owner)
-    -- Stub
+    if not activeProvider then SelectProvider() end
+    activeProvider:UnregisterCallback(owner)
+end
+
+-- Force re-selection of provider (e.g., after addon load order settles)
+function AuraAdapter:RefreshProvider()
+    activeProvider = nil
+    SelectProvider()
 end
 
 -- ============================================================
--- UTILITY: Check if Aura Designer is enabled for a frame
+-- UTILITY
 -- ============================================================
 
+-- Check if Aura Designer is enabled for a frame
 function DF:IsAuraDesignerEnabled(frame)
     local frameDB = frame and DF.GetFrameDB and DF:GetFrameDB(frame)
     if frameDB and frameDB.auraDesigner then

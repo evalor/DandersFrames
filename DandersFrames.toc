@@ -75,6 +75,8 @@ Features\MyBuffIndicators.lua
 # Aura Designer
 AuraDesigner\Config.lua
 AuraDesigner\AuraAdapter.lua
+AuraDesigner\Engine.lua
+AuraDesigner\Indicators.lua
 AuraDesigner\Options.lua
 
 Features\TargetedSpells.lua

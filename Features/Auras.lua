@@ -1634,10 +1634,18 @@ end
 
 function DF:UpdateAuras_Enhanced(frame)
     if not frame or not frame.unit then return end
-    
+
     -- PERF TEST: Skip if disabled
     if DF.PerfTest and not DF.PerfTest.enableAuras then return end
-    
+
+    -- Aura Designer takes over aura display when enabled
+    if DF:IsAuraDesignerEnabled(frame) then
+        if DF.AuraDesigner and DF.AuraDesigner.Engine then
+            DF.AuraDesigner.Engine:UpdateFrame(frame)
+        end
+        return
+    end
+
     -- Use raid DB for raid frames, party DB for party frames
     local db = frame.isRaidFrame and DF:GetRaidDB() or DF:GetDB()
     
