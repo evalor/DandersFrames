@@ -491,41 +491,119 @@ function Indicators:ApplyIcon(frame, config, auraData, defaults, auraName)
     local hideSwipe = config.hideSwipe
     if not hideSwipe and auraData.duration and auraData.duration > 0 and auraData.expirationTime and auraData.expirationTime > 0 then
         SafeSetCooldown(icon.cooldown, auraData.expirationTime, auraData.duration)
+        icon.cooldown:SetDrawSwipe(true)
         icon.cooldown:Show()
     else
+        icon.cooldown:SetDrawSwipe(false)
         icon.cooldown:Hide()
     end
 
-    -- Stack count
-    local showStacks = config.showStacks
-    if showStacks == nil then showStacks = true end
-    local stackMin = config.stackMinimum or (defaults and defaults.stackMinimum) or 2
-    icon.stackMinimum = stackMin
-    if showStacks and auraData.stacks and auraData.stacks >= stackMin then
-        icon.count:SetText(auraData.stacks)
-        icon.count:Show()
-    else
-        icon.count:SetText("")
-        icon.count:Hide()
-    end
+    -- ========================================
+    -- BORDER (the black background behind the icon texture)
+    -- ========================================
+    local borderEnabled = config.borderEnabled
+    if borderEnabled == nil then borderEnabled = true end
+    local borderThickness = config.borderThickness or 1
+    local borderInset = config.borderInset or 1
 
-    -- Duration settings (handled by shared aura timer)
-    local showDuration = config.showDuration
-    if showDuration == nil then showDuration = true end
-    icon.showDuration = showDuration
-    icon.cooldown:SetHideCountdownNumbers(not showDuration)
-
-    -- Icon border (the black background behind the icon texture)
-    local showBorder = config.showBorder
-    if showBorder == nil then showBorder = true end
     if icon.border then
-        if showBorder then
+        if borderEnabled then
+            icon.border:ClearAllPoints()
+            icon.border:SetPoint("TOPLEFT", icon, "TOPLEFT", -borderInset, borderInset)
+            icon.border:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", borderInset, -borderInset)
             icon.border:SetColorTexture(0, 0, 0, 0.8)
             icon.border:Show()
         else
             icon.border:Hide()
         end
     end
+
+    -- Adjust texture inset to sit inside border
+    if icon.texture then
+        icon.texture:ClearAllPoints()
+        local texInset = borderEnabled and borderThickness or 0
+        icon.texture:SetPoint("TOPLEFT", texInset, -texInset)
+        icon.texture:SetPoint("BOTTOMRIGHT", -texInset, texInset)
+        icon.texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    end
+
+    -- ========================================
+    -- STACK COUNT
+    -- ========================================
+    local showStacks = config.showStacks
+    if showStacks == nil then showStacks = true end
+    local stackMin = config.stackMinimum or 2
+    icon.stackMinimum = stackMin
+
+    -- Stack font/style
+    local stackFont = config.stackFont or "Fonts\\FRIZQT__.TTF"
+    local stackScale = config.stackScale or 1.0
+    local stackOutline = config.stackOutline or "OUTLINE"
+    if stackOutline == "NONE" then stackOutline = "" end
+    local stackAnchor = config.stackAnchor or "BOTTOMRIGHT"
+    local stackX = config.stackX or 0
+    local stackY = config.stackY or 0
+
+    if icon.count then
+        local stackSize = 10 * stackScale
+        DF:SafeSetFont(icon.count, stackFont, stackSize, stackOutline)
+        icon.count:ClearAllPoints()
+        icon.count:SetPoint(stackAnchor, icon, stackAnchor, stackX, stackY)
+
+        if showStacks and auraData.stacks and auraData.stacks >= stackMin then
+            icon.count:SetText(auraData.stacks)
+            icon.count:Show()
+        else
+            icon.count:SetText("")
+            icon.count:Hide()
+        end
+    end
+
+    -- ========================================
+    -- DURATION TEXT (via native cooldown text, same as Auras.lua)
+    -- ========================================
+    local showDuration = config.showDuration
+    if showDuration == nil then showDuration = true end
+    local durationFont = config.durationFont or "Fonts\\FRIZQT__.TTF"
+    local durationScale = config.durationScale or 1.0
+    local durationOutline = config.durationOutline or "OUTLINE"
+    if durationOutline == "NONE" then durationOutline = "" end
+    local durationAnchor = config.durationAnchor or "CENTER"
+    local durationX = config.durationX or 0
+    local durationY = config.durationY or 0
+    local durationColorByTime = config.durationColorByTime
+    if durationColorByTime == nil then durationColorByTime = true end
+
+    -- Wire settings to icon properties (read by shared aura timer)
+    icon.showDuration = showDuration
+    icon.durationColorByTime = durationColorByTime
+    icon.durationAnchor = durationAnchor
+    icon.durationX = durationX
+    icon.durationY = durationY
+    icon.cooldown:SetHideCountdownNumbers(not showDuration)
+
+    -- Reset reparent flag so the shared timer can reparent the native text
+    icon.nativeTextReparented = false
+
+    -- Style native cooldown text if it exists
+    if icon.nativeCooldownText then
+        local durationSize = 10 * durationScale
+        DF:SafeSetFont(icon.nativeCooldownText, durationFont, durationSize, durationOutline)
+        icon.nativeCooldownText:ClearAllPoints()
+        icon.nativeCooldownText:SetPoint(durationAnchor, icon, durationAnchor, durationX, durationY)
+    end
+
+    -- ========================================
+    -- EXPIRING INDICATORS (read settings, applied by shared timer)
+    -- ========================================
+    icon.expiringEnabled = true
+    icon.expiringThreshold = config.expiringThreshold or 30
+    icon.expiringBorderEnabled = true
+    icon.expiringBorderColorByTime = true
+    icon.expiringBorderPulsate = true
+    icon.expiringBorderThickness = 2
+    icon.expiringBorderInset = -1
+    icon.expiringTintEnabled = false
 
     -- Ensure mouse doesn't block clicks on the unit frame
     if not InCombatLockdown() and icon.SetMouseClickEnabled then
