@@ -2487,6 +2487,20 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
 
     local parent = page.child
 
+    -- ========================================
+    -- CLEANUP: Hide frames from any previous build
+    -- When the page is rebuilt (e.g., window resize), old frames
+    -- would stay visible underneath new ones without this.
+    -- ========================================
+    if mainFrame then
+        mainFrame:Hide()
+        mainFrame:SetParent(nil)
+    end
+    -- Clear placed indicator references (they were children of the old preview)
+    wipe(placedIndicators)
+    -- Clear right panel children (they were children of the old scroll child)
+    wipe(rightPanelChildren)
+
     -- Layout constants
     local BANNER_H = 36
     local ATTRIB_H = 20
