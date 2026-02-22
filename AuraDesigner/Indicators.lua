@@ -697,11 +697,17 @@ local function CreateADSquare(frame, auraName)
     sq.texture:SetPoint("TOPLEFT", 1, -1)
     sq.texture:SetPoint("BOTTOMRIGHT", -1, 1)
 
-    -- Stack count (small)
+    -- Stack count
     sq.count = sq:CreateFontString(nil, "OVERLAY")
     sq.count:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
     sq.count:SetPoint("CENTER", 0, 0)
     sq.count:SetTextColor(1, 1, 1)
+
+    -- Duration text
+    sq.duration = sq:CreateFontString(nil, "OVERLAY")
+    sq.duration:SetFont("Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+    sq.duration:SetPoint("CENTER", 0, 0)
+    sq.duration:SetTextColor(1, 1, 1)
 
     sq:Hide()
     return sq
@@ -721,9 +727,11 @@ function Indicators:ApplySquare(frame, config, auraData, defaults, auraName)
 
     local sq = GetOrCreateADSquare(frame, auraName)
 
-    -- Size
-    local size = config.size or 8
+    -- Size & scale
+    local size = config.size or 10
+    local scale = config.scale or 1.0
     sq:SetSize(size, size)
+    sq:SetScale(scale)
 
     -- Alpha
     sq:SetAlpha(config.alpha or 1.0)
@@ -737,29 +745,118 @@ function Indicators:ApplySquare(frame, config, auraData, defaults, auraName)
     end
 
     -- Position — each aura has its own anchor, no growth
-    local anchor = config.anchor or "BOTTOMLEFT"
+    local anchor = config.anchor or "TOPLEFT"
     local offsetX = config.offsetX or 0
     local offsetY = config.offsetY or 0
     sq:ClearAllPoints()
     sq:SetPoint(anchor, frame, anchor, offsetX, offsetY)
 
-    -- Border
+    -- ========================================
+    -- BORDER
+    -- ========================================
     local showBorder = config.showBorder
     if showBorder == nil then showBorder = true end
+    local borderThickness = config.borderThickness or 1
+    local borderInset = config.borderInset or 1
+
     if showBorder then
+        sq.border:ClearAllPoints()
+        sq.border:SetPoint("TOPLEFT", sq, "TOPLEFT", -borderInset, borderInset)
+        sq.border:SetPoint("BOTTOMRIGHT", sq, "BOTTOMRIGHT", borderInset, -borderInset)
+        sq.border:SetColorTexture(0, 0, 0, 1)
         sq.border:Show()
     else
         sq.border:Hide()
     end
 
-    -- Stack count
+    -- Adjust texture inset to sit inside border
+    sq.texture:ClearAllPoints()
+    local texInset = showBorder and borderThickness or 0
+    sq.texture:SetPoint("TOPLEFT", texInset, -texInset)
+    sq.texture:SetPoint("BOTTOMRIGHT", -texInset, texInset)
+
+    -- ========================================
+    -- STACK COUNT
+    -- ========================================
     local showStacks = config.showStacks
     local stackMin = config.stackMinimum or 2
-    if showStacks and auraData.stacks and auraData.stacks >= stackMin then
-        sq.count:SetText(auraData.stacks)
-        sq.count:Show()
-    else
-        sq.count:Hide()
+    local stackFont = config.stackFont or "Fonts\\FRIZQT__.TTF"
+    local stackScale = config.stackScale or 1.0
+    local stackOutline = config.stackOutline or "OUTLINE"
+    if stackOutline == "NONE" then stackOutline = "" end
+    local stackAnchor = config.stackAnchor or "CENTER"
+    local stackX = config.stackX or 0
+    local stackY = config.stackY or 0
+
+    if sq.count then
+        local stackSize = 10 * stackScale
+        DF:SafeSetFont(sq.count, stackFont, stackSize, stackOutline)
+        sq.count:ClearAllPoints()
+        sq.count:SetPoint(stackAnchor, sq, stackAnchor, stackX, stackY)
+
+        if showStacks and auraData.stacks and auraData.stacks >= stackMin then
+            sq.count:SetText(auraData.stacks)
+            sq.count:Show()
+        else
+            sq.count:SetText("")
+            sq.count:Hide()
+        end
+    end
+
+    -- ========================================
+    -- DURATION TEXT
+    -- ========================================
+    local showDuration = config.showDuration
+    local durationFont = config.durationFont or "Fonts\\FRIZQT__.TTF"
+    local durationScale = config.durationScale or 1.0
+    local durationOutline = config.durationOutline or "OUTLINE"
+    if durationOutline == "NONE" then durationOutline = "" end
+    local durationAnchor = config.durationAnchor or "CENTER"
+    local durationX = config.durationX or 0
+    local durationY = config.durationY or 0
+    local durationColorByTime = config.durationColorByTime
+    if durationColorByTime == nil then durationColorByTime = true end
+
+    local hasDuration = auraData.duration and auraData.duration > 0
+                        and auraData.expirationTime and auraData.expirationTime > 0
+
+    if sq.duration then
+        if showDuration and hasDuration then
+            local durationSize = 10 * durationScale
+            DF:SafeSetFont(sq.duration, durationFont, durationSize, durationOutline)
+            sq.duration:ClearAllPoints()
+            sq.duration:SetPoint(durationAnchor, sq, durationAnchor, durationX, durationY)
+
+            -- Format remaining time
+            local remaining = max(0, auraData.expirationTime - GetTime())
+            if remaining >= 60 then
+                sq.duration:SetText(format("%dm", remaining / 60))
+            else
+                sq.duration:SetText(format("%d", remaining))
+            end
+
+            -- Color by remaining time
+            if durationColorByTime then
+                local pct = max(0, min(1, remaining / auraData.duration))
+                local r, g, b
+                if pct < 0.3 then
+                    local t = pct / 0.3
+                    r, g, b = 1, 0.5 * t, 0
+                elseif pct < 0.5 then
+                    local t = (pct - 0.3) / 0.2
+                    r, g, b = 1, 0.5 + 0.5 * t, 0
+                else
+                    local t = (pct - 0.5) / 0.5
+                    r, g, b = 1 - t, 1, 0
+                end
+                sq.duration:SetTextColor(r, g, b, 1)
+            else
+                sq.duration:SetTextColor(1, 1, 1, 1)
+            end
+            sq.duration:Show()
+        else
+            sq.duration:Hide()
+        end
     end
 
     sq:Show()

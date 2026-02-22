@@ -152,13 +152,20 @@ local function EnsureTypeConfig(auraName, typeKey)
                 -- Placement
                 anchor = "TOPLEFT", offsetX = 0, offsetY = 0,
                 -- Appearance
-                size = 10, alpha = 1.0,
+                size = 10, scale = 1.0, alpha = 1.0,
                 color = {r = 1, g = 1, b = 1, a = 1},
-                showBorder = true, borderThickness = 1,
-                -- Duration & stacks
-                showDuration = false, showStacks = false,
-                stackMinimum = 2, stackScale = 1.0,
-                stackFont = "Fonts\\FRIZQT__.TTF",
+                -- Border
+                showBorder = true, borderThickness = 1, borderInset = 1,
+                -- Duration text
+                showDuration = false, durationFont = "Fonts\\FRIZQT__.TTF",
+                durationScale = 1.0, durationOutline = "OUTLINE",
+                durationAnchor = "CENTER", durationX = 0, durationY = 0,
+                durationColorByTime = true,
+                -- Stack count
+                showStacks = false, stackMinimum = 2,
+                stackFont = "Fonts\\FRIZQT__.TTF", stackScale = 1.0,
+                stackOutline = "OUTLINE", stackAnchor = "CENTER",
+                stackX = 0, stackY = 0,
             }
         elseif typeKey == "bar" then
             auraCfg[typeKey] = {
@@ -1172,19 +1179,36 @@ local function BuildTypeContent(parent, typeKey, auraName, width)
         AddWidget(GUI:CreateSlider(parent, "Offset X", -50, 50, 1, proxy, "offsetX"), 54)
         AddWidget(GUI:CreateSlider(parent, "Offset Y", -50, 50, 1, proxy, "offsetY"), 54)
         AddDivider()
-        -- Appearance
+        -- Sizing & appearance
         AddWidget(GUI:CreateSlider(parent, "Size", 4, 32, 1, proxy, "size"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Scale", 0.5, 3.0, 0.05, proxy, "scale"), 54)
         AddWidget(GUI:CreateColorPicker(parent, "Color", proxy, "color", true), 28)
         AddWidget(GUI:CreateSlider(parent, "Alpha", 0, 1, 0.05, proxy, "alpha"), 54)
+        AddDivider()
+        -- Border
         AddWidget(GUI:CreateCheckbox(parent, "Show Border", proxy, "showBorder"), 28)
         AddWidget(GUI:CreateSlider(parent, "Border Thickness", 1, 5, 1, proxy, "borderThickness"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Border Inset", -3, 5, 1, proxy, "borderInset"), 54)
         AddDivider()
-        -- Duration & stacks
-        AddWidget(GUI:CreateCheckbox(parent, "Show Duration", proxy, "showDuration"), 28)
+        -- Duration text
+        AddWidget(GUI:CreateCheckbox(parent, "Show Duration Text", proxy, "showDuration"), 28)
+        AddWidget(GUI:CreateDropdown(parent, "Duration Font", DF:GetFontList(), proxy, "durationFont"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Duration Scale", 0.5, 2.0, 0.1, proxy, "durationScale"), 54)
+        AddWidget(GUI:CreateDropdown(parent, "Duration Outline", OUTLINE_OPTIONS, proxy, "durationOutline"), 54)
+        AddWidget(GUI:CreateDropdown(parent, "Duration Anchor", ANCHOR_OPTIONS, proxy, "durationAnchor"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Duration Offset X", -20, 20, 1, proxy, "durationX"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Duration Offset Y", -20, 20, 1, proxy, "durationY"), 54)
+        AddWidget(GUI:CreateCheckbox(parent, "Color Duration by Time", proxy, "durationColorByTime"), 28)
+        AddDivider()
+        -- Stack count
         AddWidget(GUI:CreateCheckbox(parent, "Show Stacks", proxy, "showStacks"), 28)
-        AddWidget(GUI:CreateSlider(parent, "Min Stacks", 1, 10, 1, proxy, "stackMinimum"), 54)
-        AddWidget(GUI:CreateSlider(parent, "Stack Scale", 0.5, 2.0, 0.1, proxy, "stackScale"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Stack Minimum", 1, 10, 1, proxy, "stackMinimum"), 54)
         AddWidget(GUI:CreateDropdown(parent, "Stack Font", DF:GetFontList(), proxy, "stackFont"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Stack Scale", 0.5, 2.0, 0.1, proxy, "stackScale"), 54)
+        AddWidget(GUI:CreateDropdown(parent, "Stack Outline", OUTLINE_OPTIONS, proxy, "stackOutline"), 54)
+        AddWidget(GUI:CreateDropdown(parent, "Stack Anchor", ANCHOR_OPTIONS, proxy, "stackAnchor"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Stack Offset X", -20, 20, 1, proxy, "stackX"), 54)
+        AddWidget(GUI:CreateSlider(parent, "Stack Offset Y", -20, 20, 1, proxy, "stackY"), 54)
 
     elseif typeKey == "bar" then
         -- Placement
