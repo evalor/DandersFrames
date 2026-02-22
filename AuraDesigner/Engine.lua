@@ -69,6 +69,78 @@ function Engine:ResolveSpec(adDB)
 end
 
 -- ============================================================
+-- HARF CALLBACK REGISTRATION
+-- Register for HARF_UNIT_AURA callbacks so the engine runs
+-- with fresh data directly from HARF — not stale data from
+-- the CompactUnitFrame_UpdateAuras hook (which fires BEFORE
+-- HARF processes the event due to frame creation order).
+-- ============================================================
+
+local function RegisterHARFCallback()
+    if harfCallbackRegistered then return end
+    if not Adapter then
+        Adapter = DF.AuraDesigner.Adapter
+    end
+    if not Adapter then return end
+
+    -- Only register if the Harrek provider is active
+    local sourceName = Adapter:GetSourceName()
+    if not sourceName or not sourceName:find("Harrek") then return end
+
+    Adapter:RegisterCallback("AuraDesignerEngine", function(unit)
+        if not unit then return end
+
+        -- Find all DF frames showing this unit and update them
+        local function UpdateFrameForUnit(frame)
+            if not frame or not frame:IsVisible() then return end
+            if not frame.unit or frame.unit ~= unit then return end
+            if not DF:IsAuraDesignerEnabled(frame) then return end
+            Engine:UpdateFrame(frame)
+        end
+
+        -- Check unitFrameMap first (fast path)
+        local ourFrame = DF.unitFrameMap and DF.unitFrameMap[unit]
+        if ourFrame then
+            UpdateFrameForUnit(ourFrame)
+        else
+            -- Fallback: iterate frames
+            if DF.IteratePartyFrames then
+                DF:IteratePartyFrames(function(f)
+                    if f and f.unit == unit then
+                        UpdateFrameForUnit(f)
+                    end
+                end)
+            end
+            if DF.IterateRaidFrames then
+                DF:IterateRaidFrames(function(f)
+                    if f and f.unit == unit then
+                        UpdateFrameForUnit(f)
+                    end
+                end)
+            end
+        end
+
+        -- Also update pinned frames for this unit
+        if DF.PinnedFrames and DF.PinnedFrames.initialized and DF.PinnedFrames.headers then
+            for setIndex = 1, 2 do
+                local header = DF.PinnedFrames.headers[setIndex]
+                if header and header:IsShown() then
+                    for i = 1, 40 do
+                        local child = header:GetAttribute("child" .. i)
+                        if child and child:IsVisible() and child.unit == unit then
+                            UpdateFrameForUnit(child)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    harfCallbackRegistered = true
+    DF:Debug("AD", "Registered HARF_UNIT_AURA callback for fresh data updates")
+end
+
+-- ============================================================
 -- MAIN UPDATE FUNCTION
 -- Called per frame from UpdateAuras when Aura Designer is enabled.
 -- ============================================================
@@ -197,78 +269,6 @@ function Engine:UpdateFrame(frame)
 
     -- Hide/revert anything not applied this frame
     Indicators:EndFrame(frame)
-end
-
--- ============================================================
--- HARF CALLBACK REGISTRATION
--- Register for HARF_UNIT_AURA callbacks so the engine runs
--- with fresh data directly from HARF — not stale data from
--- the CompactUnitFrame_UpdateAuras hook (which fires BEFORE
--- HARF processes the event due to frame creation order).
--- ============================================================
-
-local function RegisterHARFCallback()
-    if harfCallbackRegistered then return end
-    if not Adapter then
-        Adapter = DF.AuraDesigner.Adapter
-    end
-    if not Adapter then return end
-
-    -- Only register if the Harrek provider is active
-    local sourceName = Adapter:GetSourceName()
-    if not sourceName or not sourceName:find("Harrek") then return end
-
-    Adapter:RegisterCallback("AuraDesignerEngine", function(unit)
-        if not unit then return end
-
-        -- Find all DF frames showing this unit and update them
-        local function UpdateFrameForUnit(frame)
-            if not frame or not frame:IsVisible() then return end
-            if not frame.unit or frame.unit ~= unit then return end
-            if not DF:IsAuraDesignerEnabled(frame) then return end
-            Engine:UpdateFrame(frame)
-        end
-
-        -- Check unitFrameMap first (fast path)
-        local ourFrame = DF.unitFrameMap and DF.unitFrameMap[unit]
-        if ourFrame then
-            UpdateFrameForUnit(ourFrame)
-        else
-            -- Fallback: iterate frames
-            if DF.IteratePartyFrames then
-                DF:IteratePartyFrames(function(f)
-                    if f and f.unit == unit then
-                        UpdateFrameForUnit(f)
-                    end
-                end)
-            end
-            if DF.IterateRaidFrames then
-                DF:IterateRaidFrames(function(f)
-                    if f and f.unit == unit then
-                        UpdateFrameForUnit(f)
-                    end
-                end)
-            end
-        end
-
-        -- Also update pinned frames for this unit
-        if DF.PinnedFrames and DF.PinnedFrames.initialized and DF.PinnedFrames.headers then
-            for setIndex = 1, 2 do
-                local header = DF.PinnedFrames.headers[setIndex]
-                if header and header:IsShown() then
-                    for i = 1, 40 do
-                        local child = header:GetAttribute("child" .. i)
-                        if child and child:IsVisible() and child.unit == unit then
-                            UpdateFrameForUnit(child)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-
-    harfCallbackRegistered = true
-    DF:Debug("AD", "Registered HARF_UNIT_AURA callback for fresh data updates")
 end
 
 -- ============================================================
