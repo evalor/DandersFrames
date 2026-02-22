@@ -2810,6 +2810,8 @@ function DF.BuildAuraDesignerPage(guiRef, pageRef, dbRef)
     PopulateTileStrip()
     RefreshRightPanel()
     RefreshActiveEffectsStrip()
+    RefreshPlacedIndicators()
+    RefreshPreviewEffects()
 end
 
 -- ============================================================
