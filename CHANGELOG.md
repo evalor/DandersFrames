@@ -1,6 +1,6 @@
 # DandersFrames Changelog
 
-## [4.0.7] - 2026-02-18
+## [4.0.7] - 2026-02-22
 
 ### Bug Fixes
 * Fix health fade errors with secret numbers — rewritten to use curve-based engine-side resolution, no Lua comparison of protected values
@@ -27,6 +27,10 @@
 * Fix aura click-through not updating safely on login
 * Fix leader icon not updating on first leader change (contributed by riyuk)
 * Fix forbidden table iteration in FindHealthManaBars (contributed by riyuk)
+* Fix forbidden table iteration in click-casting Blizzard frame registration (contributed by riyuk)
+* Fix double beta release and wrong release channel detection in CI (contributed by riyuk)
+* Fix Aura Designer indicators not displaying in combat — switched to Duration object pipeline for secret value compatibility
+* Fix Aura Designer bar duration text and expiring color flicker in combat
 * Various auto layout stability fixes
 * Fix auto layout settings contamination between party and raid modes
 * Fix auto layout override values getting stuck on test mode frames after profile switch
@@ -37,11 +41,13 @@
 * Add class power pip color, vertical layout, and role filter options
 * Add "Sync with Raid/Party" toggle per settings page (contributed by Enf0)
 * Add per-class resource bar filter toggles
+* Add click-cast binding tooltip on unit frame hover — shows active bindings with usability status (contributed by riyuk)
+* Add health gradient color mode for missing health bar, with collapsible Health Bar / Missing Health sections (contributed by Enf0)
 * Auto-reload UI when toggling click-casting enable/disable
 * Auto-show changelog when opening settings after an update
 * Rename "Auto Profiles" to "Auto Layouts" throughout the UI
 * Debug Console — in-game debug log viewer (`/df debug` to toggle, `/df console` to view)
-* Aura Designer (work in progress) — icon, square, and bar indicators are implemented; more indicator types coming soon
+* Aura Designer — icon, square, and bar indicators with instance-based placement; drag to place, toggle type per-instance, global defaults inheritance
 
 ## [4.0.6] - 2026-02-15
 
