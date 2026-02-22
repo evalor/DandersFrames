@@ -976,6 +976,7 @@ local function CreateADBar(frame, auraName)
     bar.dfAD_duration = 0
     bar.dfAD_expirationTime = 0
     bar.dfAD_elapsed = 0
+    bar.dfAD_debugElapsed = 0
     bar:SetScript("OnUpdate", function(self, elapsed)
         self.dfAD_elapsed = self.dfAD_elapsed + elapsed
         if self.dfAD_elapsed < 0.03 then return end  -- ~30 fps
@@ -1019,6 +1020,19 @@ local function CreateADBar(frame, auraName)
         end
 
         self:SetStatusBarColor(barR, barG, barB, 1)
+
+        -- Throttled debug: log every 2 seconds
+        self.dfAD_debugElapsed = (self.dfAD_debugElapsed or 0) + 0.03
+        if self.dfAD_debugElapsed >= 2 then
+            self.dfAD_debugElapsed = 0
+            DF:Debug("AD", "Bar OnUpdate: pct=%.2f rem=%.1f dur=%.0f colorByTime=%s expiring=%s threshold=%s fill=(%.2f,%.2f,%.2f) setColor=(%.2f,%.2f,%.2f)",
+                pct, remaining, self.dfAD_duration,
+                tostring(self.dfAD_barColorByTime),
+                tostring(self.dfAD_expiringEnabled),
+                tostring(self.dfAD_expiringThreshold),
+                self.dfAD_fillR or -1, self.dfAD_fillG or -1, self.dfAD_fillB or -1,
+                barR, barG, barB)
+        end
 
         -- Update spark position
         if self.spark and self.spark:IsShown() then
@@ -1126,6 +1140,11 @@ function Indicators:ApplyBar(frame, config, auraData, defaults, auraName)
     bar.dfAD_expiringEnabled = expiringEnabled
     bar.dfAD_expiringThreshold = config.expiringThreshold or 30
     bar.dfAD_expiringColor = config.expiringColor
+
+    DF:Debug("AD", "ApplyBar: aura=%s barColorByTime=%s expiring=%s threshold=%s fill=(%.2f,%.2f,%.2f) dur=%.1f exp=%.1f",
+        tostring(auraName), tostring(barColorByTime), tostring(expiringEnabled),
+        tostring(config.expiringThreshold), fillR, fillG, fillB,
+        auraData.duration or 0, auraData.expirationTime or 0)
 
     -- Store base fill color for OnUpdate fallback
     bar.dfAD_fillR = fillR
