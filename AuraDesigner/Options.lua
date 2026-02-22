@@ -157,14 +157,14 @@ local function EnsureTypeConfig(auraName, typeKey)
                 -- Border
                 showBorder = true, borderThickness = 1, borderInset = 1,
                 -- Duration text
-                showDuration = false, durationFont = "Fonts\\FRIZQT__.TTF",
+                showDuration = true, durationFont = "Fonts\\FRIZQT__.TTF",
                 durationScale = 1.0, durationOutline = "OUTLINE",
                 durationAnchor = "CENTER", durationX = 0, durationY = 0,
                 durationColorByTime = true,
                 -- Stack count
-                showStacks = false, stackMinimum = 2,
+                showStacks = true, stackMinimum = 2,
                 stackFont = "Fonts\\FRIZQT__.TTF", stackScale = 1.0,
-                stackOutline = "OUTLINE", stackAnchor = "CENTER",
+                stackOutline = "OUTLINE", stackAnchor = "BOTTOMRIGHT",
                 stackX = 0, stackY = 0,
             }
         elseif typeKey == "bar" then
