@@ -21,6 +21,7 @@ local Adapter
 -- State
 local selectedAura = nil        -- nil = Global Settings view, or aura internal name
 local selectedSpec = nil         -- Current spec key being viewed
+local expandedSections = {}     -- Persist expand state: expandedSections["auraName:typeKey"] = true/false
 
 -- Reusable color constants (mirrors GUI.lua)
 local C_BACKGROUND = {r = 0.08, g = 0.08, b = 0.08, a = 0.95}
@@ -1465,8 +1466,9 @@ local function BuildPerAuraView(parent, auraName)
         content:SetWidth(contentWidth)
         content:Hide()
 
-        -- Expand/collapse state
-        local expanded = false
+        -- Expand/collapse state (persisted across rebuilds)
+        local stateKey = auraName .. ":" .. typeKey
+        local expanded = expandedSections[stateKey] or false
 
         local function UpdateChevron()
             if expanded and isEnabled then
@@ -1510,6 +1512,7 @@ local function BuildPerAuraView(parent, auraName)
         headerClick:SetScript("OnClick", function()
             if not isEnabled then return end
             expanded = not expanded
+            expandedSections[stateKey] = expanded
             sectionData.expanded = expanded
             if expanded then
                 content:Show()
@@ -1531,6 +1534,7 @@ local function BuildPerAuraView(parent, auraName)
                 sectionData.enabled = true
                 -- Auto-expand when enabling
                 expanded = true
+                expandedSections[stateKey] = true
                 sectionData.expanded = true
                 -- Rebuild content
                 local _, h = BuildTypeContent(content, typeKey, auraName, contentWidth)
@@ -1542,6 +1546,7 @@ local function BuildPerAuraView(parent, auraName)
                 isEnabled = false
                 sectionData.enabled = false
                 expanded = false
+                expandedSections[stateKey] = false
                 sectionData.expanded = false
                 content:Hide()
             end
